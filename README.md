@@ -12,4 +12,4 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Code Credits
 
-🛠 Original template built by Cosmology — if you like their tools, please consider delegating their [our validator ⚛️](https://cosmology.tech/validator)
+🛠 Original template built by Cosmology — if you like their tools, please consider delegating to [their validator ⚛️](https://cosmology.tech/validator)
