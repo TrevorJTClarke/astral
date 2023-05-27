@@ -5,16 +5,14 @@ import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 
 export const navItems: NavProps[] = [
   {
+    // The only way to move NFTs is to have some to move...
     title: 'My NFTs',
     href: '/my-nfts'
   },
   {
+    // For bridging (launching) a collection on another chain, provisioning the channel/connections for a classId
     title: 'Bridge',
     href: '/bridge'
-  },
-  {
-    title: 'Launch',
-    href: '/launch'
   },
 ];
 
@@ -46,7 +44,7 @@ export const Header = () => {
     <header className="sticky top-0 z-50 px-8 hidden h-24 w-full max-w-full bg-white border-b border-black/10 dark:border-zinc-800 dark:bg-black lg:flex lg:flex-row lg:items-center lg:justify-between">
       <div className="flex">
         <a className="flex items-center transition-transform focus:scale-110 focus:outline-0 focus:drop-shadow-primary" href="/">
-          <img src="/stargaze.svg" alt="Stargaze" width="124" height="30" />
+          <img src="/ASTRAL_LOGO.svg" alt="ASTRAL" width="160" height="24" />
         </a>
 
         <nav className="flex flex-row space-x-4 bg-white px-2 py-6 ml-4 dark:bg-black">

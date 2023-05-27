@@ -1,5 +1,7 @@
 import '../styles/globals.css';
+import Head from 'next/head';
 import type { AppProps } from 'next/app';
+import { Header, Footer } from '../components';
 import { defaultTheme, ChainProvider } from '@cosmos-kit/react';
 import { wallets as keplrWallets } from '@cosmos-kit/keplr';
 import { wallets as cosmostationWallets } from '@cosmos-kit/cosmostation';
@@ -40,9 +42,18 @@ function AstralApp({ Component, pageProps }: AppProps) {
       walletModal={TailwindModal}
     >
       <ThemeProvider>
+        <Head>
+          <title>Astral - NFT Bridge</title>
+          <meta name="description" content="Easily bridge cosmos NFTs with ICS721" />
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+
         <div className="min-h-screen text-black bg-white dark:bg-black dark:text-white">
+          <Header />
           <Component {...pageProps} />
+          <Footer />
         </div>
+
       </ThemeProvider>
     </ChainProvider>
   );
