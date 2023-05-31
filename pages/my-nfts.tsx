@@ -1,16 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from 'next/router';
+import BigNumber from 'bignumber.js';
+import { useChain } from '@cosmos-kit/react';
+import { contracts, stargaze } from 'stargazejs';
+import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
+import { useQuery, useLazyQuery } from '@apollo/client';
 import Loader from '../components/loader'
 import NftImage from '../components/nft-image'
+import {
+  Collection,
+  Collections,
+  ContractsAddress,
+  Minter,
+  SG721,
+  TData,
+  Token,
+  TransactionResult,
+  Whitelist,
+  OwnedTokens,
+} from '../components/types'
+import {
+  chainName,
+  coin,
+  COLLECTION,
+  COLLECTIONS,
+  OWNEDTOKENS,
+  exponent,
+  getHttpUrl,
+  toDisplayAmount,
+} from '../config'
 
 export default function MyNfts() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [hasData, setHasData] = useState(false);
-  // TODO: Check if authed, to show them to connect before checkign NFT holdings
+  const {
+    address,
+    getRpcEndpoint,
+    getCosmWasmClient,
+  } = useChain(chainName);
+  console.log('address', address)
 
-  setTimeout(() => {
+  // Check if authed, to show them to connect before checkign NFT holdings
+  const isAuthed = (typeof address !== 'undefined' && address.length > 32)
+
+  const [getOwnedTokens, ownedTokensQuery] = useLazyQuery<OwnedTokens>(OWNEDTOKENS);
+
+  const getOwnedNFTs = async () => {
+    if (!address) return;
+    console.log('getOwnedNFTs!!!!!!!!!!!!!!!!!!!!!')
+
+    getOwnedTokens({
+      variables: {
+        owner: address,
+        // filterForSale: null,
+        // sortBy: "PRICE_ASC",
+        limit: 100
+      },
+    });
+  };
+
+  const getData = async () => {
+    setIsLoading(true);
+    await Promise.all([getOwnedNFTs()]);
     setIsLoading(false);
-    setHasData(true);
-  }, 1000)
+  };
+
+  useEffect(() => {
+    console.log('ownedTokensQuery!!!!!!!!!!!!!!!!!!!!!', ownedTokensQuery)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedTokensQuery.data]);
+
+  useEffect(() => {
+    if (!isAuthed) return;
+    getData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
+
+
+
+  // setTimeout(() => {
+  //   setIsLoading(false);
+  //   setHasData(true);
+  // }, 1000)
 
   const nfts = [
     {
@@ -44,12 +115,17 @@ export default function MyNfts() {
         </h1>
       </div>
 
-      {isLoading && (<div className="relative mx-auto mb-24 text-center text-white">
+      {(isLoading && isAuthed) && (<div className="relative mx-auto mb-24 text-center text-white">
         <Loader />
         <h2 className="text-2xl animate-pulse">Loading NFTs...</h2>
       </div>)}
 
-      {(!isLoading && !hasData) && (<div className="my-24 mx-auto text-center text-white">
+      {(!isLoading && !isAuthed) && (<div className="my-24 mx-auto text-center text-white">
+        <h2 className="text-xl mb-4">No Account Logged In!</h2>
+        <p className="text-md text-gray-500 mt-4">Please connect your wallet above!</p>
+      </div>)}
+
+      {(!isLoading && isAuthed && !hasData) && (<div className="my-24 mx-auto text-center text-white">
         <h2 className="text-xl mb-4">No NFTs Found!</h2>
         <p className="text-md text-gray-500 mt-4">Looks like you don't have any NFTs yet, go get some on:</p>
         <a href="https://app.stargaze.zone/marketplace" target="_blank" className="inline-flex mt-8 mb-4 items-center justify-center px-8 py-4 text-base font-medium rounded-lg text-white border-2 border-pink-600 hover:border-pink-600/80">
@@ -57,7 +133,7 @@ export default function MyNfts() {
         </a>
       </div>)}
 
-      {(!isLoading && hasData) && (
+      {(!isLoading && isAuthed && hasData) && (
         <div className="relative px-4 pt-4 sm:mx-8 sm:pt-8 md:px-0">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-8 xl:grid-cols-4">
             {nfts.map((nft, idx) => (

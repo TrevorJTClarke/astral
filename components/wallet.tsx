@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-
+import Link from 'next/link';
 import { MouseEventHandler, useEffect, useMemo, useState } from 'react';
 import { ChainCard } from '../components';
 import { Address, truncate } from './react/views';
@@ -49,6 +49,8 @@ export const WalletSection = () => {
     chain: chainInfo,
     logoUrl,
   } = useChain(chainName);
+  console.log('chainInfo', chainInfo);
+  
 
   const chain = {
     chainName,
@@ -130,22 +132,20 @@ export const WalletSection = () => {
               <div>
                 <p className="w-32 truncate text-xs font-medium">
                   <span className="group inline-flex max-w-full items-center gap-2">
-                    {/* <span className="max-w-full">stars1ql...htdf</span> */}
                     <span className="max-w-full">{username}</span>
                   </span>
                 </p>
-                {/* {address ? <Address>{address}</Address> : <></>} */}
                 <p className="text-xs font-light">{truncate(address || '')}</p>
               </div>
             </a>
             <div className="flex flex-row space-x-2">
-              <div>
-                <a className="block h-7 w-7 cursor-pointer rounded p-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 text-black hover:bg-zinc-200 dark:text-white dark:hover:bg-zinc-900" href="/my-nfts">
+              <Link href="/my-nfts">
+                <div className="block h-7 w-7 cursor-pointer rounded p-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 text-black hover:bg-zinc-200 dark:text-white dark:hover:bg-zinc-900">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"></path>
                   </svg>
-                </a>
-              </div>
+                </div>
+              </Link>
               <div>
                 <button className="block h-7 w-7 cursor-pointer rounded p-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 text-black hover:bg-zinc-200 dark:text-white dark:hover:bg-zinc-900" onClick={() => {
                     copyToClipboard(address || '');

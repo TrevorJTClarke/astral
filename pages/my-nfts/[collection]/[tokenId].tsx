@@ -1,46 +1,254 @@
-import { useState } from "react";
-import Loader from '../../components/loader'
-import NftImage from '../../components/nft-image'
+import { useState, useEffect } from "react";
+import { useRouter } from 'next/router';
+import BigNumber from 'bignumber.js';
+import { useChain } from '@cosmos-kit/react';
+import { contracts, stargaze } from 'stargazejs';
+import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
+import { useQuery, useLazyQuery } from '@apollo/client';
+import Loader from '../../../components/loader'
+import NftImage from '../../../components/nft-image'
+import {
+  Collection,
+  Collections,
+  ContractsAddress,
+  Minter,
+  SG721,
+  TData,
+  Token,
+  TransactionResult,
+  Whitelist,
+} from '../../../components/types'
+import {
+  chainName,
+  coin,
+  COLLECTION,
+  COLLECTIONS,
+  exponent,
+  getHttpUrl,
+  toDisplayAmount,
+} from '../../../config'
 
 export default function NftDetail() {
+  const { query } = useRouter()
+  console.log(query);
   const [isLoading, setIsLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
+  const [data, setData] = useState<Partial<TData>>({});
+  const [tokenUri, setTokenUri] = useState<Partial<AllNftInfoResponse>>({});
+  const [token, setToken] = useState<Partial<Token>>({});
+  const [contractsAddress, setContractsAddress] = useState<ContractsAddress>();
+  const {
+    address,
+    getRpcEndpoint,
+    getCosmWasmClient,
+    getSigningCosmWasmClient,
+    getOfflineSigner,
+  } = useChain(chainName);
+  console.log('address', address)
+  console.log('contractsAddress', contractsAddress)
 
-  setTimeout(() => {
+  // check page address
+  if (query.collection && !contractsAddress) setContractsAddress({
+    // minter: minterAddr,
+    sg721: query.collection || '',
+  });
+
+  const collectionsQuery = useQuery<Collections>(COLLECTIONS, {
+    variables: {
+      limit: 100,
+      sortBy: 'VOLUME_24H_DESC',
+    },
+  });
+
+  const [getCollectionImage, collectionQuery] =
+    useLazyQuery<Collection>(COLLECTION);
+
+  const getCollectionInfo = async () => {
+    console.log('HERE!!!!!!!!!!!!!!!!!!!!!')
+    if (!address || !contractsAddress) return;
+
+    getCollectionImage({
+      variables: {
+        collectionAddr: contractsAddress.sg721,
+      },
+    });
+
+    try {
+      const cosmWasmClient = await getCosmWasmClient();
+      console.log('cosmWasmClient', cosmWasmClient);
+      const signerCosmWasmClient = await getSigningCosmWasmClient();
+      console.log('signerCosmWasmClient', signerCosmWasmClient);
+      const offlineSignerCosmWasmClient = await getOfflineSigner();
+      console.log('offlineSignerCosmWasmClient', offlineSignerCosmWasmClient);
+
+      // // *MINTER QUERY*
+      // const { VendingMinterQueryClient } = contracts.VendingMinter;
+      // const minterQueryClient = new VendingMinterQueryClient(
+      //   cosmWasmClient,
+      //   contractsAddress.minter
+      // );
+      // const [minterInfo, mintPrice, mintableNumTokens, mintCount] =
+      //   await Promise.all([
+      //     minterQueryClient.config(),
+      //     minterQueryClient.mintPrice(),
+      //     minterQueryClient.mintableNumTokens(),
+      //     minterQueryClient.mintCount({ address }),
+      //   ]);
+      // const minter: Minter = {
+      //   ...minterInfo,
+      //   all_prices: mintPrice,
+      //   user_minted: mintCount.count,
+      //   remaining_tokens: mintableNumTokens.count,
+      // };
+
+      // // *WHITELIST QUERY*
+      // let whitelist: Whitelist;
+      // if (minterInfo.whitelist) {
+      //   const whitelistContractAddress = minterInfo.whitelist || '';
+      //   const { WhitelistQueryClient } = contracts.Whitelist;
+      //   const whitelistQueryClient = new WhitelistQueryClient(
+      //     cosmWasmClient,
+      //     whitelistContractAddress
+      //   );
+      //   whitelist = await whitelistQueryClient.config();
+      // }
+
+      // *SG721 QUERY*
+      const { SG721BaseQueryClient } = contracts.SG721Base;
+      const sg721QueryClient = new SG721BaseQueryClient(
+        cosmWasmClient,
+        contractsAddress.sg721
+      );
+      console.log('sg721QueryClient', sg721QueryClient)
+      const [collectionInfo, contractInfo, minterInfo] = await Promise.all([
+        sg721QueryClient.collectionInfo(),
+        sg721QueryClient.contractInfo(),
+        sg721QueryClient.minter(),
+      ]);
+      const sg721: SG721 = { ...collectionInfo, ...contractInfo, ...minterInfo };
+      console.log('sg721', sg721)
+      const nftInfo = await sg721QueryClient.allNftInfo({ tokenId: `${query.tokenId}` || '' })
+      setTokenUri(nftInfo)
+      console.log('nftInfo', nftInfo)
+
+      setData((prev) => ({
+        ...prev,
+        // collectionInfo: { minter, sg721, whitelist },
+        collectionInfo: { sg721 },
+      }));
+      setHasData(true);
+    } catch (error) {
+      console.error(error);
+      setHasData(false);
+    }
+  };
+
+  const getData = async () => {
+    setIsLoading(true);
+    console.log('HERE!!!!!!!!!!!!!!!!!!!!!')
+    // await Promise.all([getBalance(), getStarsPrice(), getCollectionInfo()]);
+    await Promise.all([getCollectionInfo()]);
     setIsLoading(false);
-    setHasData(true);
-  }, 1000)
+  };
 
-  const nfts = [
-    {
-      id: '1234',
-      uri: 'https://res.cloudinary.com/stargaze/image/upload/f_jpg,w_700/qwktjeervndbdheovlye',
-      title: 'THX',
-      classId: 'p6/c6/p4/c4/p2/c2/nftClass',
-      classUri: '',
-    },
-    {
-      id: '1235',
-      uri: 'https://res.cloudinary.com/stargaze/image/upload/f_auto,w_700/deajoau4sl3w9fg0mzft',
-      title: 'THX',
-      classId: 'p6/c6/p4/c4/p2/c2/nftClass',
-      classUri: '',
-    },
-    {
-      id: '1236',
-      uri: 'https://res.cloudinary.com/stargaze/image/upload/f_auto,w_700/pnb2wkbcnlhppush402q',
-      title: 'THX',
-      classId: 'p6/c6/p4/c4/p2/c2/nftClass',
-      classUri: '',
-    },
-  ]
+  // const getMinterContractAddr = async () => {
+  //   if (!collectionsQuery.data || contractsAddress) return;
 
-  // const nft = nfts.find((id) => id === )
-  const nft = nfts[0]
+  //   const sortedCollections = [
+  //     ...collectionsQuery.data.collections.collections,
+  //   ].sort((a, b) => a.floorPrice - b.floorPrice);
+
+  //   const cosmWasmClient = await getSigningCosmWasmClient();
+  //   const { SG721BaseQueryClient } = contracts.SG721Base;
+  //   const { VendingMinterQueryClient } = contracts.VendingMinter;
+
+  //   for (const collection of sortedCollections) {
+  //     const sg721QueryClient = new SG721BaseQueryClient(
+  //       cosmWasmClient,
+  //       collection.collectionAddr
+  //     );
+  //     const { minter: minterAddr } = await sg721QueryClient.minter();
+
+  //     // const minterQueryClient = new VendingMinterQueryClient(
+  //     //   cosmWasmClient,
+  //     //   minterAddr
+  //     // );
+
+  //     // const [{ current_price: price }, { count: remainingTokens }] =
+  //     //   await Promise.all([
+  //     //     minterQueryClient.mintPrice(),
+  //     //     minterQueryClient.mintableNumTokens(),
+  //     //   ]);
+
+  //     // const isLowPrice = new BigNumber(price.amount)
+  //     //   .shiftedBy(-exponent)
+  //     //   .lte(80);
+
+  //     // if (remainingTokens && isLowPrice) {
+  //     //   setContractsAddress({
+  //     //     minter: minterAddr,
+  //     //     sg721: collection.collectionAddr,
+  //     //   });
+  //     //   break;
+  //     // }
+  //     setContractsAddress({
+  //       minter: minterAddr,
+  //       sg721: collection.collectionAddr,
+  //     });
+  //   }
+  // };
+
+  useEffect(() => {
+    if (!contractsAddress) {
+      setIsLoading(true);
+      return;
+    }
+    console.log('HERE!!!!!!!!!!!!!!!!!!!!!')
+    // if (collectionsQuery.data) getMinterContractAddr();
+    if (contractsAddress) getData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractsAddress, collectionsQuery.data]);
+
+  useEffect(() => {
+    if (!contractsAddress || !tokenUri) {
+      return;
+    }
+    console.log('GET THE IPFS STUFF')
+    const nftInfoUri = tokenUri?.info?.token_uri?.startsWith('https')
+      ? tokenUri?.info?.token_uri
+      : getHttpUrl(`${tokenUri?.info?.token_uri}`);
+    console.log('nftInfoUri', nftInfoUri)
+    if (nftInfoUri) fetch(nftInfoUri)
+      .then(res => {
+        if (res.ok) {
+          return res.json()
+        }
+        // throw res
+      })
+      .then(data => {
+        console.log('TOKEN URI', data)
+        setToken((prev) => ({
+          ...prev,
+          ...data,
+        }));
+      })
+      .catch(e => {
+        // 
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractsAddress, tokenUri]);
+
+  const collectionImageUrl = collectionQuery.data?.collection?.image?.startsWith('https')
+    ? collectionQuery.data?.collection.image
+    : getHttpUrl(data.collectionInfo?.sg721.image);
+  const imageUrl = token?.image ? getHttpUrl(token?.image) : collectionImageUrl
+  const collectionDescription = (data.collectionInfo?.sg721.description.length || 0) > 250
+    ? data.collectionInfo?.sg721.description.slice(0, 250) + '...'
+    : data.collectionInfo?.sg721.description
+  const tokenDescription = token?.description ? token?.description : collectionDescription
 
   return (
     <div className="my-4">
-
 
       {isLoading && (<div className="relative mx-auto mb-24 text-center text-white">
         <Loader />
@@ -51,55 +259,31 @@ export default function NftDetail() {
         <h2 className="text-xl mb-4">No NFT Found!</h2>
       </div>)}
 
-      {/* {(!isLoading && hasData) && (
-        <div className="relative px-4 pt-4 sm:mx-8 sm:pt-8 md:px-0">
-          <div className="grid grid-cols-2 gap-4">
-            <NftImage uri={nft.uri} alt={nft.title} />
-            <div className="text-center">
-              <h1 className="mb-6 text-center text-3xl font-semibold xl:text-5xl">
-                {nft.title}
-              </h1>
-            </div>
-          </div>
-        </div>
-      )} */}
-
       {(!isLoading && hasData) && (
         <div>
 
           <div className="mx-auto bg-white p-4 pb-12 dark:bg-black sm:p-6 lg:p-8">
             <div className="mx-auto gap-x-8 p-0 sm:px-6 lg:grid lg:max-w-screen-2xl lg:grid-cols-2 lg:gap-x-24">
               <div className="flex flex-col shrink divide-y border bg-white transition-shadow rounded-lg border-zinc-300 shadow-sm dark:border-zinc-800 divide-zinc-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black w-full overflow-hidden rounded-l-lg sm:rounded-t-lg sm:rounded-bl-none" >
-                <div className="relative overflow-hidden  bg-zinc-50 dark:bg-black">
-                  <a href="/marketplace/stars19jq6mj84cnt9p7sagjxqf8hxtczwc8wlpuwe4sh62w45aheseues57n420/1434">
-                    <div className="h-full w-full overflow-hidden rounded">
-                      <div className=" h-full w-full transform-gpu transition-transform group-hover/card:scale-[1.04] group-active/card:scale-100 group-hover/largecard:scale-[1.03] group-active/largecard:scale-100 ">
-                        <img src="https://res.cloudinary.com/stargaze/image/upload/w_700/fovfwckej1ahgvluo0q8.jpg" alt="" height="700" width="700" className="h-full w-full transform-gpu object-contain opacity-100 transition-transform group-hover/card:scale-[1.04] group-hover/largecard:scale-[1.03] group-active/card:scale-100 group-active/largecard:scale-100" />
-                      </div>
-                    </div>
-                  </a>
-                </div>
+                <NftImage uri={imageUrl} alt={token.name} />
               </div>
               <div className="mt-8 lg:mt-0">
                 <div className="flex items-center justify-between">
                   <div>
-                    <a className="mb-2 text-xs font-semibold uppercase text-pink-500 hover:text-pink" href="/marketplace/stars19jq6mj84cnt9p7sagjxqf8hxtczwc8wlpuwe4sh62w45aheseues57n420">Bad Kids</a>
-                    <div className="mb-2 text-2xl font-semibold">Bad Kid #1434</div>
+                    <a className="mb-2 text-xs font-semibold uppercase text-pink-500 hover:text-pink" href="/marketplace/stars19jq6mj84cnt9p7sagjxqf8hxtczwc8wlpuwe4sh62w45aheseues57n420">{data.collectionInfo?.sg721.name}</a>
+                    <div className="mb-2 text-2xl font-semibold">{token.name}</div>
                   </div>
-                  <button className="flex-none rounded-lg text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 text-red-500 bg-transparent border-red-500 hover:bg-red-600 hover:border-red-600 hover:text-white shadow-sm inline-flex items-center justify-center border-0 px-2 py-1.5" type="button">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="h-5 w-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z"> </path>
-                    </svg>
-                  </button>
                 </div>
-                <div className="text-sm text-zinc-300">Bad Kids is a collection of 9,999 bad drawings of bad kids</div>
+                <div className="text-sm text-zinc-300">
+                  {tokenDescription}
+                </div>
                 <p className="mt-2 text-sm text-zinc-300">
-                  <span>Created by</span>
+                  <span>Created by </span>
                   <span className="group inline-flex max-w-full items-center gap-2 cursor-pointer text-pink-500 hover:text-pink-600">
                     <span className="max-w-full">
                       <a className="rounded-sm focus-visible:outline focus-visible:outline-pink-500 focus-visible:outline-2 focus-visible:outline-offset-2" href="/profile/stars15y38ehvexp6275ptmm4jj3qdds379nk07tw95r">
                         <span className="inline-flex relative overflow-hidden max-w-full">
-                          <span aria-hidden="false" className="max-w-full break-all transition truncate">badkids.stars</span>
+                          <span aria-hidden="false" className="max-w-full break-all transition truncate">{data.collectionInfo?.sg721.creator}</span>
                           <span className="absolute inset-0 inline-flex items-center transition translate-y-8 opacity-0">
                             <span className="truncate" aria-hidden="true">stars15y...w95r</span>
                           </span>
@@ -117,29 +301,43 @@ export default function NftDetail() {
                     </button>
                   </span>
                 </p>
-                <div className="inline-flex items-end gap-1 text-sm font-semibold text-zinc-300 mt-2">
-                  <div data-tooltip-id=":r8o:" data-tooltip-content="Rarity: #4774 / 9999 " data-tooltip-place="top" className="flex">
-                    <div className="inline-flex items-center gap-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="h-4">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"> </path>
+                <p className="mt-2 text-sm text-zinc-300">
+                  <span>Owner </span>
+                  <span className="group inline-flex max-w-full items-center gap-2 cursor-pointer text-pink-500 hover:text-pink-600">
+                    <span className="max-w-full">
+                      <a className="rounded-sm focus-visible:outline focus-visible:outline-pink-500 focus-visible:outline-2 focus-visible:outline-offset-2" href="/profile/stars15y38ehvexp6275ptmm4jj3qdds379nk07tw95r">
+                        <span className="inline-flex relative overflow-hidden max-w-full">
+                          <span aria-hidden="false" className="max-w-full break-all transition truncate">{tokenUri?.access?.owner || ''}</span>
+                          <span className="absolute inset-0 inline-flex items-center transition translate-y-8 opacity-0">
+                            <span className="truncate" aria-hidden="true">stars15y...w95r</span>
+                          </span>
+                        </span>
+                      </a>
+                    </span>
+                    <button aria-label="Copy" className="w-4 h-4 text-white group/button relative inline focus:outline-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-4 h-4 text-white inline absolute inset-0 scale-0 opacity-0 transition">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75"> </path>
                       </svg>
-                      4774
-                    </div>
-                  </div>
-                </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="w-4 h-4 text-white inline absolute inset-0 scale-0 opacity-0 transition group-hover:scale-100 group-hover:opacity-80 group-focus-visible/button:scale-110 group-focus-visible/button:opacity-100 group-hover/button:scale-110 group-active/button:scale-100">
+                        <path d="M2 4.25A2.25 2.25 0 014.25 2h6.5A2.25 2.25 0 0113 4.25V5.5H9.25A3.75 3.75 0 005.5 9.25V13H4.25A2.25 2.25 0 012 10.75v-6.5z"> </path>
+                        <path d="M9.25 7A2.25 2.25 0 007 9.25v6.5A2.25 2.25 0 009.25 18h6.5A2.25 2.25 0 0018 15.75v-6.5A2.25 2.25 0 0015.75 7h-6.5z"> </path>
+                      </svg>
+                    </button>
+                  </span>
+                </p>
                 <div className="my-8">
-                  <div className="grid grid-cols-2 gap-2 sm:max-w-xs">
+                  <div className="grid grid-cols-2 gap-4 sm:max-w-xs">
                     <button className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="-ml-1 mr-2 h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"></path></svg>
                       <span>Transfer</span>
                     </button>
                     <button className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-5 h-5 mr-2 -ml-1"> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"> </path> </svg>
-                      <span className="flex-none">Sell</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="-ml-1 mr-2 h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path></svg>
+                      <span className="flex-none">View Market</span>
                     </button>
                   </div>
                 </div>
-                <div className="my-8 flex flex-wrap justify-start gap-y-3 rounded-lg border border-zinc-800 p-3 md:mt-0 md:justify-between md:gap-y-3 md:p-4">
+                {/* <div className="my-8 flex flex-wrap justify-start gap-y-3 rounded-lg border border-zinc-800 p-3 md:mt-0 md:justify-between md:gap-y-3 md:p-4">
                   <div className="flex w-1/3 flex-col gap-1 md:w-auto md:gap-2">
                     <div className="text-sm text-zinc-400">Owner</div>
                     <div className="text-sm text-white">
@@ -165,8 +363,8 @@ export default function NftDetail() {
                     <div className="text-sm text-zinc-400">Top Offer</div>
                     <div className="text-sm text-white">22.1K STARS</div>
                   </div>
-                </div>
-                <div className="col-span-2 mt-8 rounded-lg border border-zinc-800">
+                </div> */}
+                {/* <div className="col-span-2 mt-8 rounded-lg border border-zinc-800">
                   <div className="border-b border-zinc-800 p-4 sm:flex sm:items-center">
                     <div className="inline-flex flex-col justify-center sm:flex-auto sm:flex-row">
                       <h1 className="inline-flex flex-auto items-center gap-2 font-semibold">
@@ -225,7 +423,7 @@ export default function NftDetail() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>
