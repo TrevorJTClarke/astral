@@ -4,9 +4,8 @@ import {
   Link,
   Logger,
   RelayInfo,
-  testutils,
   IbcClient,
-} from "@confio/relayer";
+} from "@confio/relayer/build/lib";
 import { ExecuteResult, InstantiateResult } from "@cosmjs/cosmwasm-stargate";
 import { GasPrice } from "@cosmjs/stargate";
 import { ChannelPair } from "@confio/relayer/build/lib/link";
@@ -14,12 +13,7 @@ import { fromBase64, fromUtf8 } from "@cosmjs/encoding";
 import { OfflineSigner } from "@cosmjs/proto-signing";
 import { assert } from "@cosmjs/utils";
 import { Order } from "cosmjs-types/ibc/core/channel/v1/channel";
-
-const {
-  osmosis: oldOsmo,
-  wasmd,
-  setup,
-} = testutils;
+import { IbcClientOptions } from "@confio/relayer/build/lib/ibcclient";
 
 export const logger: Logger = {
   debug(message: string, meta?: Record<string, unknown>): Logger {
@@ -177,17 +171,12 @@ export async function ibcSigningClient(
   logger: Logger
 ) {
   const account = (await client.getAccounts())[0]
-  const options = {
+  const options: IbcClientOptions = {
     gasPrice: GasPrice.fromString(opts.minFee),
     logger,
     estimatedBlockTime: opts.estimatedBlockTime || 6000,
     estimatedIndexerTime: opts.estimatedIndexerTime || 6000,
   };
-  // const options = {
-  //   prefix: opts.prefix,
-  //   gasPrice: GasPrice.fromString(opts.minFee),
-  //   logger,
-  // };
   const ibcClient = await IbcClient.connectWithSigner(opts.tendermintUrlHttp, client, account.address, options);
   return ibcClient;
 }

@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+import { Fragment, useRef, useState, useEffect } from "react";
+import { AssetList, Asset, Chain } from '@chain-registry/types';
+import { Dialog, Disclosure, Listbox, Transition } from '@headlessui/react'
+import { ArrowSmallRightIcon, CheckIcon, PaperAirplaneIcon, ChevronUpDownIcon, XMarkIcon, ChevronUpIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/router';
 import BigNumber from 'bignumber.js';
 import { useChain } from '@cosmos-kit/react';
@@ -6,6 +9,7 @@ import { contracts, stargaze } from 'stargazejs';
 import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
 import { useQuery, useLazyQuery } from '@apollo/client';
 import Loader from '../../../components/loader'
+import NftLoader from '../../../components/nft-loader'
 import NftImage from '../../../components/nft-image'
 import {
   Collection,
@@ -19,6 +23,7 @@ import {
   Whitelist,
 } from '../../../components/types'
 import {
+  networkType,
   chainName,
   coin,
   COLLECTION,
@@ -26,12 +31,60 @@ import {
   exponent,
   getHttpUrl,
   toDisplayAmount,
+  getMarketForAddress,
+  getChainByChainId,
+  getChainAssets,
 } from '../../../config'
+import { connections, NFTChannel } from '../../../contexts/connections'
+
+const connectionChannels = connections[`${networkType}`]
+const networkMap: any = {}
+
+// use known connections to filter available chains
+connectionChannels.forEach((channels: NFTChannel) => {
+  Object.keys(channels).forEach((cid: string) => {
+    const chain_id = channels[cid].chain_id
+    if (!networkMap[chain_id]) {
+      const network = getChainByChainId(chain_id)
+      if (network) {
+        const assetList = getChainAssets(network)
+        const asset = assetList?.assets ? assetList.assets[0] : null
+        networkMap[chain_id] = { ...network, asset }
+      }
+    }
+  })
+})
+
+const availableNetworks: Chain[] | undefined = Object.values(networkMap)
+console.log('availableNetworks', availableNetworks)
+
+const people = [
+  {
+    id: 1,
+    name: 'Wade Cooper',
+    avatar:
+      'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+  {
+    id: 2,
+    name: 'Arlene Mccoy',
+    avatar:
+      'https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  },
+]
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ')
+}
 
 export default function NftDetail() {
   const { query } = useRouter()
   console.log(query);
   const [isLoading, setIsLoading] = useState(true);
+  const [open, setOpen] = useState(true)
+  const cancelButtonRef = useRef(null)
+  // TODO: Change to this tokens network
+  const [selected, setSelected] = useState(availableNetworks[0])
   const [hasData, setHasData] = useState(false);
   const [data, setData] = useState<Partial<TData>>({});
   const [tokenUri, setTokenUri] = useState<Partial<AllNftInfoResponse>>({});
@@ -242,10 +295,13 @@ export default function NftDetail() {
     ? collectionQuery.data?.collection.image
     : getHttpUrl(data.collectionInfo?.sg721.image);
   const imageUrl = token?.image ? getHttpUrl(token?.image) : collectionImageUrl
+  console.log('imageUrl', imageUrl)
   const collectionDescription = (data.collectionInfo?.sg721.description.length || 0) > 250
     ? data.collectionInfo?.sg721.description.slice(0, 250) + '...'
     : data.collectionInfo?.sg721.description
   const tokenDescription = token?.description ? token?.description : collectionDescription
+
+  const market = contractsAddress?.sg721 ? getMarketForAddress(`${contractsAddress.sg721}`) : null
 
   return (
     <div className="my-4">
@@ -327,14 +383,16 @@ export default function NftDetail() {
                 </p>
                 <div className="my-8">
                   <div className="grid grid-cols-2 gap-4 sm:max-w-xs">
-                    <button className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="-ml-1 mr-2 h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"></path></svg>
+                    <button onClick={() => setOpen(true)} className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
                       <span>Transfer</span>
+                      <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
                     </button>
-                    <button className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="-ml-1 mr-2 h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"></path></svg>
-                      <span className="flex-none">View Market</span>
-                    </button>
+                    {market && (
+                      <a href={market.marketLink} className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                        <span className="flex-none">View Market</span>
+                        <ShoppingBagIcon className="flex-shrink-0 w-5 h-5 ml-2 " />
+                      </a>
+                    )}
                   </div>
                 </div>
                 {/* <div className="my-8 flex flex-wrap justify-start gap-y-3 rounded-lg border border-zinc-800 p-3 md:mt-0 md:justify-between md:gap-y-3 md:p-4">
@@ -431,6 +489,253 @@ export default function NftDetail() {
 
         </div>
       )}
+
+      <Transition.Root show={open} as={Fragment}>
+        <Dialog as="div" className="relative z-50" initialFocus={cancelButtonRef} onClose={setOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-zinc-800/75 transition-opacity" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-0 text-center sm:items-center sm:p-0">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <Dialog.Panel className="relative transform rounded-xl bg-white dark:bg-black p-8 [min-height:18rem] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg md:max-w-3xl">
+                  
+                  {false && (
+                    <div>
+                      <div className="relative mt-0 text-left sm:mt-0">
+                        <Dialog.Title as="div" className="text-2xl font-semibold leading-6 text-gray-100">
+                          Transfer
+
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-500">
+                              Move an NFT to any recipient on any network.
+                            </p>
+                          </div>
+                        </Dialog.Title>
+
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-transparent opacity-70 hover:opacity-100 hover:bg-gray-800 px-4 py-3 rounded-xl"
+                          onClick={() => setOpen(false)}
+                          ref={cancelButtonRef}
+                        >
+                          <XMarkIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
+                        </button>
+
+                        <div className="grid gap-20 grid-cols-2 mt-8">
+                          <div className="relative">
+                            <label className="block text-sm font-medium leading-6 text-gray-300">From</label>
+                            <div className="relative mt-2 w-full cursor-default rounded-md bg-black py-4 pl-3 pr-10 text-left text-gray-100 shadow-sm ring-2 ring-inset ring-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 sm:text-sm sm:leading-6">
+                              <span className="flex items-center">
+                                {selected?.asset?.logo_URIs?.png && (
+                                  <img src={selected.asset.logo_URIs.png} alt={selected.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
+                                )}
+                                <span className="ml-3 text-xl block truncate">{selected.pretty_name}</span>
+                              </span>
+                            </div>
+
+                            <ArrowSmallRightIcon className="absolute top-1/2 -right-[55px] h-8 w-8 text-gray-400" aria-hidden="true" />
+                          </div>
+                          <div>
+                            <Listbox value={selected} onChange={setSelected}>
+                              {({ open }) => (
+                                <>
+                                  <Listbox.Label className="block text-sm font-medium leading-6 text-gray-300">To</Listbox.Label>
+                                  <div className="relative mt-2">
+                                    <Listbox.Button className="relative w-full cursor-default rounded-md bg-black py-4 pl-3 pr-10 text-left text-gray-100 shadow-sm ring-2 ring-inset ring-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 sm:text-sm sm:leading-6">
+                                      <span className="flex items-center">
+                                        {selected?.asset?.logo_URIs?.png && (
+                                          <img src={selected.asset.logo_URIs.png} alt={selected.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
+                                        )}
+                                        <span className="ml-3 text-xl block truncate">{selected.pretty_name}</span>
+                                      </span>
+                                      <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                      </span>
+                                    </Listbox.Button>
+
+                                    <Transition
+                                      show={open}
+                                      as={Fragment}
+                                      leave="transition ease-in duration-100"
+                                      leaveFrom="opacity-100"
+                                      leaveTo="opacity-0"
+                                    >
+                                      <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-gray-900 py-1 text-base shadow-lg ring-2 ring-gray-800 ring-opacity-5 focus:outline-none sm:text-sm">
+                                        {availableNetworks.map((network) => (
+                                          <Listbox.Option
+                                            key={network.chain_id}
+                                            className={({ active }) =>
+                                              classNames(
+                                                active ? 'bg-pink-600 text-white' : 'text-gray-300',
+                                                'relative cursor-default select-none py-4 pl-3 pr-9'
+                                              )
+                                            }
+                                            value={network}
+                                          >
+                                            {({ selected, active }) => (
+                                              <>
+                                                <div className="flex items-center">
+                                                  {network?.asset?.logo_URIs?.png && (
+                                                    <img src={network.asset.logo_URIs.png} alt={network.pretty_name} className="h-5 w-5 flex-shrink-0 rounded-full" />
+                                                  )}
+                                                  <span
+                                                    className={classNames(selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate')}
+                                                  >
+                                                    {network.pretty_name}
+                                                  </span>
+                                                </div>
+
+                                                {selected ? (
+                                                  <span
+                                                    className={classNames(
+                                                      active ? 'text-white' : 'text-indigo-600',
+                                                      'absolute inset-y-0 right-0 flex items-center pr-4'
+                                                    )}
+                                                  >
+                                                    <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                                  </span>
+                                                ) : null}
+                                              </>
+                                            )}
+                                          </Listbox.Option>
+                                        ))}
+                                      </Listbox.Options>
+                                    </Transition>
+                                  </div>
+                                </>
+                              )}
+                            </Listbox>
+                          </div>
+                        </div>
+
+                        <div className="mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                          <div className="sm:col-span-8">
+                            <label htmlFor="recipient" className="block text-sm font-medium leading-6 text-white">
+                              Recipient
+                            </label>
+                            <div className="mt-2">
+                              <div className="flex rounded-md bg-white/5 ring-1 ring-inset ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-pink-500">
+                                <input
+                                  type="text"
+                                  name="recipient"
+                                  id="recipient"
+                                  autoComplete="recipient"
+                                  className="w-full flex-1 border-0 bg-transparent p-4 text-white focus:ring-0 sm:text-sm sm:leading-6"
+                                  placeholder="stars8ctjhub6oe8ip454cc8..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Disclosure>
+                          {({ open }) => (
+                            <>
+                              <Disclosure.Button className="flex mt-8 text-gray-300 mx-auto">
+                                <span className="uppercase text-xs">Advanced</span>
+                                <ChevronUpIcon
+                                  className={`${open ? 'rotate-180 transform' : ''
+                                    } h-4 w-4 ml-2`}
+                                />
+                              </Disclosure.Button>
+                              <Disclosure.Panel className="">
+                                <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                                  <div className="sm:col-span-8">
+                                    <label htmlFor="recipient" className="block text-sm font-medium leading-6 text-white">
+                                      Channel
+                                    </label>
+                                    <div className="mt-2">
+                                      <div className="flex rounded-md bg-white/5 ring-1 ring-inset ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-pink-500">
+                                        <input
+                                          type="text"
+                                          name="recipient"
+                                          id="recipient"
+                                          autoComplete="recipient"
+                                          className="w-full flex-1 border-0 bg-transparent p-4 text-white focus:ring-0 sm:text-sm sm:leading-6"
+                                          placeholder="stars8ctjhub6oe8ip454cc8..."
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Disclosure.Panel>
+                            </>
+                          )}
+                        </Disclosure>
+
+                        <div className="mt-8 px-3 py-2 flex justify-between text-sm text-gray-400 rounded-xl border border-1 border-gray-800">
+                          <p>Estimated Time</p>
+                          <p>45 seconds</p>
+                        </div>
+
+                      </div>
+                      <div className="mt-12 sm:mt-6 md:mt-12 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-4">
+                        <button
+                          type="button"
+                          className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
+                          onClick={() => setOpen(false)}
+                        >
+                          Send
+                          <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {true && (
+                    <div>
+                      <div className="relative mt-0 text-left sm:mt-0">
+                        <Dialog.Title as="div" className="text-2xl animate-pulse font-semibold leading-6 text-gray-100">
+                          Transfering...
+
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-500">
+                              Please be patient while your transfer is in progress.
+                            </p>
+                          </div>
+                        </Dialog.Title>
+
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-transparent opacity-0 hover:opacity-100 hover:bg-gray-800 px-4 py-3 rounded-xl"
+                          onClick={() => setOpen(false)}
+                          ref={cancelButtonRef}
+                        >
+                          <XMarkIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
+                        </button>
+
+                        <div className="relative mx-auto mt-8 text-center text-white">
+                          <NftLoader uri={imageUrl} alt={token.name} />
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition.Root>
 
     </div>
   );

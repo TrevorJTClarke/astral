@@ -49,8 +49,6 @@ export const WalletSection = () => {
     chain: chainInfo,
     logoUrl,
   } = useChain(chainName);
-  console.log('chainInfo', chainInfo);
-  
 
   const chain = {
     chainName,
