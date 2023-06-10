@@ -1,5 +1,7 @@
 import { Fragment, useRef, useState, useEffect } from "react";
 import { AssetList, Asset, Chain } from '@chain-registry/types';
+import { toBase64, toUtf8 } from "@cosmjs/encoding";
+import { StdFee } from '@cosmjs/stargate';
 import { Dialog, Disclosure, Listbox, Transition } from '@headlessui/react'
 import { ArrowSmallRightIcon, CheckIcon, PaperAirplaneIcon, ChevronUpDownIcon, XMarkIcon, ChevronUpIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/router';
@@ -29,62 +31,47 @@ import {
   COLLECTION,
   COLLECTIONS,
   exponent,
+  classNames,
   getHttpUrl,
   toDisplayAmount,
   getMarketForAddress,
   getChainByChainId,
   getChainAssets,
+  getChainForAddress,
 } from '../../../config'
-import { connections, NFTChannel } from '../../../contexts/connections'
+import { availableNetworks, extendedChannels, NFTChannel } from '../../../contexts/connections'
 
-const connectionChannels = connections[`${networkType}`]
-const networkMap: any = {}
-
-// use known connections to filter available chains
-connectionChannels.forEach((channels: NFTChannel) => {
-  Object.keys(channels).forEach((cid: string) => {
-    const chain_id = channels[cid].chain_id
-    if (!networkMap[chain_id]) {
-      const network = getChainByChainId(chain_id)
-      if (network) {
-        const assetList = getChainAssets(network)
-        const asset = assetList?.assets ? assetList.assets[0] : null
-        networkMap[chain_id] = { ...network, asset }
-      }
-    }
-  })
-})
-
-const availableNetworks: Chain[] | undefined = Object.values(networkMap)
-console.log('availableNetworks', availableNetworks)
-
-const people = [
-  {
-    id: 1,
-    name: 'Wade Cooper',
-    avatar:
-      'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-  {
-    id: 2,
-    name: 'Arlene Mccoy',
-    avatar:
-      'https://images.unsplash.com/photo-1550525811-e5869dd03032?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-  },
-]
-
-function classNames(...classes) {
-  return classes.filter(Boolean).join(' ')
+export enum TransferView {
+  Setup,
+  Sending,
+  Complete,
+  Error,
 }
+
+// TODO: Self-Relay enum
+
+
+const allSteps = [
+  { name: 'IBC Send', href: '#', status: 'current', description: 'Origin network sent asset' },
+  { name: 'IBC Receive', href: '#', status: 'upcoming', description: 'Destination network received asset' },
+  { name: 'IBC Confirm', href: '#', status: 'upcoming', description: 'Origin network acknowledged asset receipt' },
+]
 
 export default function NftDetail() {
   const { query } = useRouter()
   console.log(query);
   const [isLoading, setIsLoading] = useState(true);
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const cancelButtonRef = useRef(null)
   // TODO: Change to this tokens network
-  const [selected, setSelected] = useState(availableNetworks[0])
+  const [srcNetwork, setSrcNetwork] = useState<Chain[] | undefined>(availableNetworks[0])
+  const [destNetwork, setDestNetwork] = useState<Chain[] | undefined>(availableNetworks[0])
+  const [availableChannels, setAvailableChannels] = useState<NFTChannel[]>([])
+  const [selectedChannel, setSelectedChannel] = useState<NFTChannel | undefined>()
+  const [currentView, setCurrentView] = useState<TransferView>(TransferView.Setup);
+  const [currentSteps, setCurrentSteps] = useState(allSteps);
+  const [currentIbcStep, setCurrentIbcStep] = useState(0);
+  const [receiver, setReceiver] = useState('');
   const [hasData, setHasData] = useState(false);
   const [data, setData] = useState<Partial<TData>>({});
   const [tokenUri, setTokenUri] = useState<Partial<AllNftInfoResponse>>({});
@@ -106,12 +93,12 @@ export default function NftDetail() {
     sg721: query.collection || '',
   });
 
-  const collectionsQuery = useQuery<Collections>(COLLECTIONS, {
-    variables: {
-      limit: 100,
-      sortBy: 'VOLUME_24H_DESC',
-    },
-  });
+  // const collectionsQuery = useQuery<Collections>(COLLECTIONS, {
+  //   variables: {
+  //     limit: 100,
+  //     sortBy: 'VOLUME_24H_DESC',
+  //   },
+  // });
 
   const [getCollectionImage, collectionQuery] =
     useLazyQuery<Collection>(COLLECTION);
@@ -204,6 +191,24 @@ export default function NftDetail() {
     setIsLoading(false);
   };
 
+  const startTransfer = async () => {
+    setCurrentView(TransferView.Sending)
+    await submitTransfer()
+
+    setTimeout(() => {
+      setCurrentIbcStep(1)
+    }, 2000)
+    setTimeout(() => {
+      setCurrentIbcStep(2)
+    }, 4500)
+
+    setTimeout(() => {
+      setCurrentView(TransferView.Complete)
+      // setCurrentIbcStep(1)
+      // setCurrentView(TransferView.Error)
+    }, 6000)
+  }
+
   // const getMinterContractAddr = async () => {
   //   if (!collectionsQuery.data || contractsAddress) return;
 
@@ -260,7 +265,7 @@ export default function NftDetail() {
     // if (collectionsQuery.data) getMinterContractAddr();
     if (contractsAddress) getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractsAddress, collectionsQuery.data]);
+  }, [contractsAddress]); //, collectionsQuery.data
 
   useEffect(() => {
     if (!contractsAddress || !tokenUri) {
@@ -291,17 +296,127 @@ export default function NftDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress, tokenUri]);
 
+  // TODO: check other cases!
+  useEffect(() => {
+    if (!open) {
+      setCurrentView(TransferView.Setup);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const as = allSteps.map((s, idx) => {
+      if (currentIbcStep > idx) s.status = 'complete'
+      if (currentIbcStep === idx) s.status = 'current'
+      if (currentIbcStep < idx) s.status = 'upcoming'
+      return s
+    })
+    setCurrentSteps(as)
+  }, [currentIbcStep]);
+
+  useEffect(() => {
+    // filter to channels only for selected network and base network
+    const chain_id = srcNetwork.chain_id
+    const foundChannels: NFTChannelChain[] = []
+
+    // TODO: Filter to src + dest channels
+    extendedChannels.forEach(channels => {
+      Object.keys(channels).forEach(k => {
+        if (chain_id === channels[k].chain_id) foundChannels.push(channels[k])
+      })
+    })
+    console.log('srcNetwork, foundChannels', srcNetwork, foundChannels)
+
+    setAvailableChannels(foundChannels)
+    if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
+  }, [destNetwork]);
+
   const collectionImageUrl = collectionQuery.data?.collection?.image?.startsWith('https')
     ? collectionQuery.data?.collection.image
     : getHttpUrl(data.collectionInfo?.sg721.image);
   const imageUrl = token?.image ? getHttpUrl(token?.image) : collectionImageUrl
-  console.log('imageUrl', imageUrl)
+  console.log('token', token)
   const collectionDescription = (data.collectionInfo?.sg721.description.length || 0) > 250
     ? data.collectionInfo?.sg721.description.slice(0, 250) + '...'
     : data.collectionInfo?.sg721.description
   const tokenDescription = token?.description ? token?.description : collectionDescription
-
+  const tokenChain = contractsAddress?.sg721 ? getChainForAddress(contractsAddress.sg721) : null
   const market = contractsAddress?.sg721 ? getMarketForAddress(`${contractsAddress.sg721}`) : null
+
+  if (tokenChain) {
+    const assetList = getChainAssets(tokenChain)
+    tokenChain.asset = assetList?.assets ? assetList.assets[0] : null
+    if (!srcNetwork) setSrcNetwork(tokenChain)
+  }
+
+  const submitTransfer = async () => {
+    if (!address || !contractsAddress) return;
+    const cosmWasmClient = await getCosmWasmClient();
+    const status = await cosmWasmClient.tmClient.status()
+
+    // request recent height
+    const recentHeight = status?.syncInfo?.latestBlockHeight ? status.syncInfo.latestBlockHeight : 0
+    console.log('recentHeight', recentHeight);
+    // TODO: handle error here
+    if (!recentHeight) return;
+    // TODO: handle error here
+    if (!receiver || !selectedChannel?.channel) return;
+    console.log('receiver, selectedChannel', receiver, selectedChannel);
+
+    const ibcMsg = {
+      receiver,
+      channel_id: selectedChannel?.channel, // "channel-230",
+      timeout: {
+        block: {
+          revision: 6, // seems to be the chain_id split end
+          height: recentHeight + 30
+        }
+      }
+    }
+
+    let contractPort: string | undefined;
+    if (selectedChannel?.port && `${selectedChannel.port}`.search('wasm') > -1) {
+      contractPort = `${selectedChannel.port}`.split('.')[1]
+    }
+
+    const msg = {
+      send_nft: {
+        contract: `${contractPort}`,
+        token_id: `${query.tokenId}`,
+        msg: toBase64(toUtf8(JSON.stringify(ibcMsg)))
+      }
+    }
+    console.log('-----------------------> msg', msg)
+
+    const fee: StdFee = {
+      amount: [
+        {
+          denom: 'ustars',
+          amount: '2500',
+        },
+      ],
+      gas: new BigNumber('1450000').toString(),
+    };
+
+    // get signer!
+    const signingCosmWasmClient = await getSigningCosmWasmClient();
+    console.log('signingCosmWasmClient', signingCosmWasmClient, address, fee)
+    try {
+      // const res = await signingCosmWasmClient.signAndBroadcast(
+      const res = await signingCosmWasmClient.execute(
+        address,
+        contractsAddress.sg721,
+        msg,
+        fee,
+        // 'auto',
+      );
+      console.log('signingCosmWasmClient res', res);
+      // getData();
+    } catch (e) {
+      console.error('signingCosmWasmClient e', e);
+    } finally {
+      signingCosmWasmClient.disconnect();
+    }
+  }
 
   return (
     <div className="my-4">
@@ -517,7 +632,7 @@ export default function NftDetail() {
               >
                 <Dialog.Panel className="relative transform rounded-xl bg-white dark:bg-black p-8 [min-height:18rem] text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg md:max-w-3xl">
                   
-                  {false && (
+                  {currentView === TransferView.Setup && (
                     <div>
                       <div className="relative mt-0 text-left sm:mt-0">
                         <Dialog.Title as="div" className="text-2xl font-semibold leading-6 text-gray-100">
@@ -543,28 +658,30 @@ export default function NftDetail() {
                           <div className="relative">
                             <label className="block text-sm font-medium leading-6 text-gray-300">From</label>
                             <div className="relative mt-2 w-full cursor-default rounded-md bg-black py-4 pl-3 pr-10 text-left text-gray-100 shadow-sm ring-2 ring-inset ring-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 sm:text-sm sm:leading-6">
-                              <span className="flex items-center">
-                                {selected?.asset?.logo_URIs?.png && (
-                                  <img src={selected.asset.logo_URIs.png} alt={selected.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
-                                )}
-                                <span className="ml-3 text-xl block truncate">{selected.pretty_name}</span>
-                              </span>
+                              {tokenChain && (
+                                <span className="flex items-center">
+                                  {tokenChain?.asset?.logo_URIs?.png && (
+                                    <img src={tokenChain.asset.logo_URIs.png} alt={tokenChain.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
+                                  )}
+                                  <span className="ml-3 text-xl block truncate">{tokenChain.pretty_name}</span>
+                                </span>
+                              )}
                             </div>
 
                             <ArrowSmallRightIcon className="absolute top-1/2 -right-[55px] h-8 w-8 text-gray-400" aria-hidden="true" />
                           </div>
                           <div>
-                            <Listbox value={selected} onChange={setSelected}>
+                            <Listbox value={destNetwork} onChange={setDestNetwork}>
                               {({ open }) => (
                                 <>
                                   <Listbox.Label className="block text-sm font-medium leading-6 text-gray-300">To</Listbox.Label>
                                   <div className="relative mt-2">
                                     <Listbox.Button className="relative w-full cursor-default rounded-md bg-black py-4 pl-3 pr-10 text-left text-gray-100 shadow-sm ring-2 ring-inset ring-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 sm:text-sm sm:leading-6">
                                       <span className="flex items-center">
-                                        {selected?.asset?.logo_URIs?.png && (
-                                          <img src={selected.asset.logo_URIs.png} alt={selected.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
+                                        {destNetwork?.asset?.logo_URIs?.png && (
+                                          <img src={destNetwork.asset.logo_URIs.png} alt={destNetwork.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
                                         )}
-                                        <span className="ml-3 text-xl block truncate">{selected.pretty_name}</span>
+                                        <span className="ml-3 text-xl block truncate">{destNetwork.pretty_name}</span>
                                       </span>
                                       <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
                                         <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -606,7 +723,7 @@ export default function NftDetail() {
                                                 {selected ? (
                                                   <span
                                                     className={classNames(
-                                                      active ? 'text-white' : 'text-indigo-600',
+                                                      active ? 'text-white' : 'text-pink-600',
                                                       'absolute inset-y-0 right-0 flex items-center pr-4'
                                                     )}
                                                   >
@@ -639,7 +756,8 @@ export default function NftDetail() {
                                   id="recipient"
                                   autoComplete="recipient"
                                   className="w-full flex-1 border-0 bg-transparent p-4 text-white focus:ring-0 sm:text-sm sm:leading-6"
-                                  placeholder="stars8ctjhub6oe8ip454cc8..."
+                                  placeholder={address?.substring(0, 22) + '...'}
+                                  onChange={(e) => setReceiver(e.target.value)}
                                 />
                               </div>
                             </div>
@@ -659,20 +777,82 @@ export default function NftDetail() {
                               <Disclosure.Panel className="">
                                 <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                   <div className="sm:col-span-8">
-                                    <label htmlFor="recipient" className="block text-sm font-medium leading-6 text-white">
-                                      Channel
-                                    </label>
                                     <div className="mt-2">
-                                      <div className="flex rounded-md bg-white/5 ring-1 ring-inset ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-pink-500">
-                                        <input
-                                          type="text"
-                                          name="recipient"
-                                          id="recipient"
-                                          autoComplete="recipient"
-                                          className="w-full flex-1 border-0 bg-transparent p-4 text-white focus:ring-0 sm:text-sm sm:leading-6"
-                                          placeholder="stars8ctjhub6oe8ip454cc8..."
-                                        />
-                                      </div>
+                                      <Listbox value={selectedChannel} onChange={setSelectedChannel}>
+                                        {({ open }) => (
+                                          <>
+                                            <Listbox.Label className="block text-sm font-medium leading-6 text-gray-300">Channel</Listbox.Label>
+                                            <div className="relative mt-2">
+                                              <Listbox.Button className="relative w-full cursor-default rounded-md bg-black py-4 pl-3 pr-10 text-left text-gray-100 shadow-sm ring-2 ring-inset ring-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 sm:text-sm sm:leading-6">
+                                                <span className="flex items-center">
+                                                  {selectedChannel?.asset?.logo_URIs?.png && (
+                                                    <img src={selectedChannel.asset.logo_URIs.png} alt={selectedChannel.chain.pretty_name} className="h-10 w-10 flex-shrink-0 rounded-full" />
+                                                  )}
+                                                  {selectedChannel?.chain?.pretty_name && (
+                                                    <>
+                                                      <span className="ml-3 text-xl block truncate">{selectedChannel.chain.pretty_name}</span>
+                                                      <span className="ml-3 text-xl block truncate">{selectedChannel.channel}</span>
+                                                    </>
+                                                  )}
+                                                </span>
+                                                <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                                                  <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                                </span>
+                                              </Listbox.Button>
+
+                                              <Transition
+                                                show={open}
+                                                as={Fragment}
+                                                leave="transition ease-in duration-100"
+                                                leaveFrom="opacity-100"
+                                                leaveTo="opacity-0"
+                                              >
+                                                <Listbox.Options className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-gray-900 py-1 text-base shadow-lg ring-2 ring-gray-800 ring-opacity-5 focus:outline-none sm:text-sm">
+                                                  {availableChannels.map((channel) => (
+                                                    <Listbox.Option
+                                                      key={channel.channel}
+                                                      className={({ active }) =>
+                                                        classNames(
+                                                          active ? 'bg-pink-600 text-white' : 'text-gray-300',
+                                                          'relative cursor-default select-none py-4 pl-3 pr-9'
+                                                        )
+                                                      }
+                                                      value={channel}
+                                                    >
+                                                      {({ selected, active }) => (
+                                                        <>
+                                                          <div className="flex items-center">
+                                                            {channel.asset?.logo_URIs?.png && (
+                                                              <img src={channel.asset.logo_URIs.png} alt={channel.channel} className="h-5 w-5 flex-shrink-0 rounded-full" />
+                                                            )}
+                                                            {channel?.chain?.pretty_name && (
+                                                              <>
+                                                                <span className={classNames(selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate')}>{channel.chain.pretty_name}</span>
+                                                                <span className={classNames(selected ? 'font-semibold' : 'font-normal', 'ml-3 block truncate')}>{channel.channel}</span>
+                                                              </>
+                                                            )}
+                                                          </div>
+
+                                                          {selected ? (
+                                                            <span
+                                                              className={classNames(
+                                                                active ? 'text-white' : 'text-pink-600',
+                                                                'absolute inset-y-0 right-0 flex items-center pr-4'
+                                                              )}
+                                                            >
+                                                              <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                                            </span>
+                                                          ) : null}
+                                                        </>
+                                                      )}
+                                                    </Listbox.Option>
+                                                  ))}
+                                                </Listbox.Options>
+                                              </Transition>
+                                            </div>
+                                          </>
+                                        )}
+                                      </Listbox>
                                     </div>
                                   </div>
                                 </div>
@@ -691,7 +871,7 @@ export default function NftDetail() {
                         <button
                           type="button"
                           className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
-                          onClick={() => setOpen(false)}
+                          onClick={startTransfer}
                         >
                           Send
                           <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
@@ -700,7 +880,7 @@ export default function NftDetail() {
                     </div>
                   )}
                   
-                  {true && (
+                  {currentView === TransferView.Sending && (
                     <div>
                       <div className="relative mt-0 text-left sm:mt-0">
                         <Dialog.Title as="div" className="text-2xl animate-pulse font-semibold leading-6 text-gray-100">
@@ -724,6 +904,191 @@ export default function NftDetail() {
 
                         <div className="relative mx-auto mt-8 text-center text-white">
                           <NftLoader uri={imageUrl} alt={token.name} />
+
+                          <nav className="flex flex-col items-center justify-center" aria-label="Progress">
+                            <ol role="list" className="mb-4 flex items-center space-x-5 pointer-events-none">
+                              {currentSteps.map((step) => (
+                                <li key={step.name}>
+                                  {step.status === 'complete' ? (
+                                    <a href={step.href} className="block h-2.5 w-2.5 rounded-full bg-pink-600 hover:bg-pink-900">
+                                      <span className="sr-only">{step.name}</span>
+                                    </a>
+                                  ) : step.status === 'current' ? (
+                                    <a href={step.href} className="relative flex items-center justify-center" aria-current="step">
+                                      <span className="absolute flex h-5 w-5 p-px" aria-hidden="true">
+                                          <span className="h-full w-full rounded-full bg-pink-900/60" />
+                                      </span>
+                                        <span className="relative block h-2.5 w-2.5 rounded-full bg-pink-600" aria-hidden="true" />
+                                      <span className="sr-only">{step.name}</span>
+                                    </a>
+                                  ) : (
+                                    <a href={step.href} className="block h-2.5 w-2.5 rounded-full bg-gray-800 hover:bg-gray-600">
+                                      <span className="sr-only">{step.name}</span>
+                                    </a>
+                                  )}
+                                </li>
+                              ))}
+                            </ol>
+                            <p className="text-sm text-gray-500 font-medium animate-pulse">
+                              {currentSteps[currentSteps.findIndex((step) => step.status === 'current')].name}
+                            </p>
+                          </nav>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+                  
+                  {currentView === TransferView.Complete && (
+                    <div>
+                      <div className="flex flex-col relative mt-0 text-center sm:mt-0">
+                        <Dialog.Title as="div" className="text-2xl font-semibold leading-6 text-gray-100">
+                          🎉 Success! 🎉
+
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-500">
+                              Your transfer has finished. Time for confetti! 
+                            </p>
+                          </div>
+                        </Dialog.Title>
+
+                        {/* <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-transparent opacity-70 hover:opacity-100 hover:bg-gray-800 px-4 py-3 rounded-xl"
+                          onClick={() => setOpen(false)}
+                          ref={cancelButtonRef}
+                        >
+                          <XMarkIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
+                        </button> */}
+
+                        <div className="relative mx-auto h-[250px] mt-8 text-center text-white">
+                          <NftImage className="h-[250px] w-[250px]" uri={imageUrl} alt={token.name} />
+                        </div>
+
+                        <div className="mt-12 sm:mt-6 md:mt-12 flex justify-center">
+                          <button
+                            type="button"
+                            className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
+                            onClick={() => setOpen(false)}
+                          >
+                            Close
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+                  
+                  {currentView === TransferView.Error && (
+                    <div>
+                      <div className="relative mt-0 text-left sm:mt-0">
+                        <Dialog.Title as="div" className="text-2xl font-semibold leading-6 text-gray-100">
+                          Transfer Error
+
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-500">
+                              Something went wrong with your transfer.
+                            </p>
+                          </div>
+                        </Dialog.Title>
+
+                        <button
+                          type="button"
+                          className="absolute top-0 right-0 bg-transparent opacity-0 hover:opacity-100 hover:bg-gray-800 px-4 py-3 rounded-xl"
+                          onClick={() => setOpen(false)}
+                          ref={cancelButtonRef}
+                        >
+                          <XMarkIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
+                        </button>
+
+                        <div className="flex justify-start gap-16 relative mx-auto mt-8">
+                          <NftImage className="h-[250px] w-[250px]" uri={imageUrl} alt={token.name} />
+
+                          <div className="my-auto">
+                            <nav aria-label="Progress">
+                              <ol role="list" className="overflow-hidden pointer-events-none">
+                                {currentSteps.map((step, stepIdx) => (
+                                  <li key={step.name} className={classNames(stepIdx !== currentSteps.length - 1 ? 'pb-10' : '', 'relative')}>
+                                    {step.status === 'complete' || step.status === 'error' ? (
+                                      <>
+                                        {stepIdx !== currentSteps.length - 1 ? (
+                                          // <div className="absolute left-4 top-4 -ml-px mt-0.5 h-full w-0.5 bg-pink-600" aria-hidden="true" />
+                                          <div className={classNames(step.status === 'error' ? 'bg-gray-600' : 'bg-pink-600', 'absolute left-4 top-4 -ml-px mt-0.5 h-full w-0.5')} aria-hidden="true" />
+                                        ) : null}
+                                        <a href={step.href} className="group relative flex items-start">
+                                          <span className="flex h-9 items-center">
+                                            <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-pink-600">
+                                              {step.status === 'complete' ? (
+                                                <CheckIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                                              ) : (
+                                                <XMarkIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                                              )}
+                                            </span>
+                                          </span>
+                                          <span className="ml-4 flex min-w-0 flex-col">
+                                            <span className="text-sm text-white font-medium">{step.name}</span>
+                                            <span className="text-sm text-gray-500">{step.description}</span>
+                                          </span>
+                                        </a>
+                                      </>
+                                    ) : step.status === 'current' ? (
+                                      <>
+                                        {stepIdx !== currentSteps.length - 1 ? (
+                                          <div className="absolute left-4 top-4 -ml-px mt-0.5 h-full w-0.5 bg-gray-600" aria-hidden="true" />
+                                        ) : null}
+                                        <a href={step.href} className="group relative flex items-start" aria-current="step">
+                                          <span className="flex h-9 items-center" aria-hidden="true">
+                                            <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-pink-600 bg-black">
+                                              <span className="h-2.5 w-2.5 rounded-full bg-pink-600" />
+                                            </span>
+                                          </span>
+                                          <span className="ml-4 flex min-w-0 flex-col">
+                                            <span className="text-sm font-medium text-pink-600">{step.name}</span>
+                                            <span className="text-sm text-gray-500">{step.description}</span>
+                                          </span>
+                                        </a>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {stepIdx !== currentSteps.length - 1 ? (
+                                          <div className="absolute left-4 top-4 -ml-px mt-0.5 h-full w-0.5 bg-gray-800" aria-hidden="true" />
+                                        ) : null}
+                                        <a href={step.href} className="group relative flex items-start">
+                                          <span className="flex h-9 items-center" aria-hidden="true">
+                                            <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-600 bg-black">
+                                              {/* <span className="h-2.5 w-2.5 rounded-full bg-transparent group-hover:bg-gray-600" /> */}
+                                            </span>
+                                          </span>
+                                          <span className="ml-4 flex min-w-0 flex-col">
+                                            <span className="text-sm font-medium text-gray-500">{step.name}</span>
+                                            <span className="text-sm text-gray-500">{step.description}</span>
+                                          </span>
+                                        </a>
+                                      </>
+                                    )}
+                                  </li>
+                                ))}
+                              </ol>
+                            </nav>
+                          </div>
+                        </div>
+
+                        <div className="mt-12 sm:mt-6 md:mt-12 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-4">
+                          <button
+                            type="button"
+                            className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
+                            onClick={() => setOpen(false)}
+                          >
+                            Try Again
+                          </button>
+                          <button
+                            type="button"
+                            className="mt-3 inline-flex w-full justify-center rounded-md bg-transparent opacity-70 hover:opacity-95 px-8 py-4 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-gray-300 sm:col-start-1 sm:mt-0"
+                            onClick={() => setOpen(false)}
+                            ref={cancelButtonRef}
+                          >
+                            Cancel
+                          </button>
                         </div>
 
                       </div>

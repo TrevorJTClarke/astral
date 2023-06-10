@@ -27,6 +27,14 @@ export interface MsgSendIcsOptions {
   receiver: string
 }
 
+export const queryNftContractMsg = (class_id: string) => {
+  return { nft_contract: { class_id } }
+}
+
+export const queryNftContractsMsg = (start_after?: string, limit?: number) => {
+  return { nft_contracts: { start_after, limit } }
+}
+
 export async function getMsgSendIcsNft(client: CosmWasmClient, options: MsgSendIcsOptions): Promise<ICS721SendNFT> {
   // TODO: Get current height on sending client chain
 

@@ -3,6 +3,10 @@ import { AssetList, Asset, Chain } from '@chain-registry/types';
 import { fromBech32 } from "@cosmjs/encoding";
 import BigNumber from 'bignumber.js';
 
+export function classNames(...classes: any[]) {
+  return classes.filter(Boolean).join(' ')
+}
+
 export const networkType = process.env.NEXT_NETWORK_TYPE ?? 'testnet';;
 // export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargaze';;
 export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargazetestnet';;

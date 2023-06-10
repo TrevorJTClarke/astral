@@ -11,11 +11,6 @@ export default function NftLoader({ uri, alt }: NftImageType) {
           <span></span>
           <span></span>
         </span>
-        {/* <div className="loader-base">
-          <span></span>
-          <div className="loader-face"></div>
-        </div> */}
-
       </div>
       <div className="loader-longfazers">
         <span></span>

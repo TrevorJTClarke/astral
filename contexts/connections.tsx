@@ -1,3 +1,9 @@
+import {
+  networkType,
+  getChainAssets,
+  getChainByChainId,
+} from '../config'
+
 export interface NFTChannel {
   chain_id: string
   port: string
@@ -122,7 +128,6 @@ export const testnetConnections: NFTConnection[] = [
 		},
 	},
 	{
-
 		channel_a: {
 			chain_id: "elgafar-1",
 			port:    "wasm.stars1ve46fjrhcrum94c7d8yc2wsdz8cpuw73503e8qn9r44spr6dw0lsvmvtqh",
@@ -147,7 +152,6 @@ export const testnetConnections: NFTConnection[] = [
 		},
 	},
 	{
-
 		channel_a: {
 			chain_id: "elgafar-1",
 			port:    "wasm.stars1ve46fjrhcrum94c7d8yc2wsdz8cpuw73503e8qn9r44spr6dw0lsvmvtqh",
@@ -296,4 +300,55 @@ export const testnetConnections: NFTConnection[] = [
 export const connections: { testnet: NFTConnection[], mainnet: NFTConnection[] } = {
   testnet: testnetConnections,
   mainnet: mainnetConnections,
+}
+
+export interface NFTChannelChain extends NFTChannel {
+  chain?: Chain
+  asset?: Asset
+}
+
+export interface NFTConnectionChain extends NFTConnection {
+  channel_a: NFTChannelChain
+  channel_b: NFTChannelChain
+}
+
+export const connectionChannels = connections[`${networkType}`]
+const networkMap: any = {}
+export const extendedChannels: NFTConnectionChain[] = []
+
+// use known connections to filter available chains
+connectionChannels.forEach((channels: NFTChannel) => {
+  const connection: NFTConnectionChain = {}
+  Object.keys(channels).forEach((cid: string) => {
+    const chain_id = channels[cid].chain_id
+    const network = getChainByChainId(chain_id)
+    let asset: Asset | undefined;
+    if (network) {
+      const assetList = getChainAssets(network)
+      asset = assetList?.assets ? assetList.assets[0] : null
+      connection[cid] = { ...channels[cid], asset, chain: network }
+    }
+    if (!networkMap[chain_id] && network) networkMap[chain_id] = { ...network, asset }
+  })
+
+  if (Object.keys(connection).length > 0) extendedChannels.push(connection)
+})
+console.log('extendedChannels', extendedChannels)
+
+export const availableNetworks: Chain[] | undefined = Object.values(networkMap)
+console.log('availableNetworks', availableNetworks)
+
+export const getBridgeContractsForChainId = (chain_id: string): string[] => {
+  const contractAddresses: string[] = []
+
+  connectionChannels.forEach((channels: NFTConnectionChain) => {
+    Object.keys(channels).forEach((cid: string) => {
+      if (chain_id != channels[cid].chain_id) return;
+      const port = channels[cid].port
+      const contract_addr = `${port}`.search('wasm') > -1 ? `${port}`.split('.')[1] : null
+      if (contract_addr && !contractAddresses.includes(contract_addr)) contractAddresses.push(contract_addr)
+    })
+  })
+
+  return contractAddresses
 }
