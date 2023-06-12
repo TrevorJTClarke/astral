@@ -157,14 +157,8 @@ export default function MyNfts() {
         if (!chain.selected) return;
         const repo = manager.getWalletRepo(chain.chain_name)
         if (repo.current?.address) setOwnerAddresses({ ...ownerAddresses, [`${chain.chain_id}`]: repo.current.address })
-        console.log('>> selectedChains getCosmWasmClient', chain.chain_name, repo, repo.current?.address, ownerAddresses)
         clients[chain.chain_id] = await repo.getCosmWasmClient()
       }
-
-      // Check if authed, to show them to connect before checkign NFT holdings
-      console.log('Object.keys(ownerAddresses).length > 0', ownerAddresses, Object.keys(ownerAddresses).length, Object.keys(ownerAddresses).length > 0);
-
-      
     })();
  
     // eslint-disable-next-line react-hooks/exhaustive-deps

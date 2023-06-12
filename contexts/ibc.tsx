@@ -174,11 +174,17 @@ export async function ibcSigningClient(
   const options: IbcClientOptions = {
     gasPrice: GasPrice.fromString(opts.minFee),
     logger,
-    estimatedBlockTime: opts.estimatedBlockTime || 6000,
-    estimatedIndexerTime: opts.estimatedIndexerTime || 6000,
+    estimatedBlockTime: opts.estimatedBlockTime,// || 6000,
+    estimatedIndexerTime: opts.estimatedIndexerTime,// || 6000,
   };
-  const ibcClient = await IbcClient.connectWithSigner(opts.tendermintUrlHttp, client, account.address, options);
-  return ibcClient;
+  try {
+    const ibcClient = await IbcClient.connectWithSigner(opts.tendermintUrlHttp, client, account.address, options);
+    console.log('ibcSigningClient --', opts.minFee, ibcClient);
+
+    return ibcClient;
+  } catch (e) {
+    throw e
+  }
 }
 
 export async function createIbcConnectionAndChannel(
@@ -200,20 +206,60 @@ export async function createIbcConnectionAndChannel(
   console.log('bContractIbcPortId', bContractIbcPortId)
   assert(bContractIbcPortId);
 
-  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: '', minFee: '0' }, logger);
-  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: '', minFee: '0' }, logger);
+  // TODO: prefix & minFee
+  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: '', minFee: '0.0025ustars', tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger);
+  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: '', minFee: '0.0025ujuno', tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger);
+  console.log('aIbcClient', aIbcClient)
+  console.log('bIbcClient', bIbcClient)
 
   // create a connection and channel
-  const link = await Link.createWithNewConnections(aIbcClient, bIbcClient, logger);
-  const channel = await link.createChannel(
-    "A",
-    aContractIbcPortId,
-    bContractIbcPortId,
-    ordering,
-    version
-  );
+  let link 
+  try {
+    link = await Link.createWithNewConnections(aIbcClient, bIbcClient, logger);
+  } catch (e) {
+    console.log('LINK FAILED')
+    throw e
+  }
+  try {
+    const channel = await link.createChannel(
+      "A",
+      aContractIbcPortId,
+      bContractIbcPortId,
+      ordering,
+      version
+    );
 
-  return { channel, link };
+    return { channel, link };
+  } catch (e) {
+    console.log('CHANNEL FAILED')
+    throw e
+  }
+}
+
+export async function createIbcRelayLinkFromExisting(
+  aSignerClient: CosmWasmSigner,
+  aOfflineClient: OfflineSigner,
+  connA: string,
+  bSignerClient: CosmWasmSigner,
+  bOfflineClient: OfflineSigner,
+  connB: string,
+): Promise<Link> {
+  // TODO: prefix & minFee
+  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: '', minFee: '0.0025ustars', tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger);
+  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: '', minFee: '0.0025ujuno', tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger);
+  console.log('aIbcClient', aIbcClient)
+  console.log('bIbcClient', bIbcClient)
+  console.log('---- connA aIbcClient --- connA', await aIbcClient.query.ibc.connection.connection(connA))
+
+  // create a link from existing
+  let link 
+  try {
+    link = await Link.createWithExistingConnections(aIbcClient, bIbcClient, connA, connB, logger);
+    return link;
+  } catch (e) {
+    console.log('LINK FAILED')
+    throw e
+  }
 }
 
 // throws error if not all are success

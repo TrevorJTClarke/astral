@@ -126,7 +126,19 @@ export const testnetConnections: NFTConnection[] = [
 			port:    "nft-transfer",
 			channel: "channel-25",
 		},
-	},
+  },
+  {
+    channel_a: {
+      chain_id: "elgafar-1",
+      port: "wasm.stars1qpl2xtwgrlnhg7c5f56tn8sgru53yxae8qx6zcxcz40fnfa9vk2sypwh0e",
+      channel: "channel-468",
+    },
+    channel_b: {
+      chain_id: "uni-6",
+      port: "wasm.juno17f8seg2s7vekzjf9u340krujcvyx3sqrj6ggcukhp9dyv64hhdxqkm4frn",
+      channel: "channel-443",
+    },
+  },
 	{
 		channel_a: {
 			chain_id: "elgafar-1",
