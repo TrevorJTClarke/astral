@@ -6,7 +6,7 @@ import { Dialog, Disclosure, Listbox, Transition } from '@headlessui/react'
 import { ArrowSmallRightIcon, CheckIcon, PaperAirplaneIcon, ChevronUpDownIcon, XMarkIcon, ChevronUpIcon, ShoppingBagIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/router';
 import BigNumber from 'bignumber.js';
-import { useChain } from '@cosmos-kit/react';
+import { useChain, useManager } from '@cosmos-kit/react';
 import { contracts, stargaze } from 'stargazejs';
 import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
 import { useQuery, useLazyQuery } from '@apollo/client';
@@ -40,6 +40,7 @@ import {
   getChainForAddress,
 } from '../../../config'
 import { availableNetworks, extendedChannels, NFTChannel } from '../../../contexts/connections'
+import { parseClassId } from '../../../contexts/ics721'
 
 export enum TransferView {
   Setup,
@@ -50,6 +51,38 @@ export enum TransferView {
 
 // TODO: Self-Relay enum
 
+// provenance example
+const provenance = [
+  {
+    chain: { chain_name: 'junotestnet', pretty_name: 'Juno Testnet' },
+    asset: {
+      logo_URIs: {
+        png: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/testnets/junotestnet/images/juno.png'
+      }
+    },
+    bridge_addr: 'juno17f8seg2s7vekzjf9u340krujcvyx3sqrj6ggcukhp9dyv64hhdxqkm4frn',
+    nft_addr: 'juno1630sjf99u55dv7qzmp7l4q3zaazjd3ynj4sr09rz8kgc65npmnzsq324mz',
+    class_id: 'wasm.juno17f8seg2s7vekzjf9u340krujcvyx3sqrj6ggcukhp9dyv64hhdxqkm4frn/channel-443/stars16hx05capdpplze40d03wkhgtkv00plr492fqm9pe3306qadmkldqer4zes',
+    connection: {
+      // TODO:
+    },
+    is_origin: false,
+  },
+  {
+    chain: { chain_name: 'stargazetestnet', pretty_name: 'Stargaze Testnet' },
+    asset: {
+      logo_URIs: {
+        png: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/stargaze/images/stars.png'
+      }
+    },
+    bridge_addr: null,
+    nft_addr: 'stars16hx05capdpplze40d03wkhgtkv00plr492fqm9pe3306qadmkldqer4zes',
+    class_id: 'stars16hx05capdpplze40d03wkhgtkv00plr492fqm9pe3306qadmkldqer4zes',
+    connection: null,
+    is_origin: true,
+  },
+]
+
 
 const allSteps = [
   { name: 'IBC Send', href: '#', status: 'current', description: 'Origin network sent asset' },
@@ -59,10 +92,12 @@ const allSteps = [
 
 export default function NftDetail() {
   const { query } = useRouter()
-  console.log(query);
+  console.log('queryqueryqueryqueryqueryqueryqueryquery', query);
   const [isLoading, setIsLoading] = useState(true);
   const [open, setOpen] = useState(false)
   const cancelButtonRef = useRef(null)
+  const [address, setAddress] = useState<string | undefined>();
+  const [currentChainName, setCurrentChainName] = useState<string | undefined>();
   // TODO: Change to this tokens network
   const [srcNetwork, setSrcNetwork] = useState<Chain[] | undefined>(availableNetworks[0])
   const [destNetwork, setDestNetwork] = useState<Chain[] | undefined>(availableNetworks[0])
@@ -77,15 +112,11 @@ export default function NftDetail() {
   const [tokenUri, setTokenUri] = useState<Partial<AllNftInfoResponse>>({});
   const [token, setToken] = useState<Partial<Token>>({});
   const [contractsAddress, setContractsAddress] = useState<ContractsAddress>();
-  const {
-    address,
-    getRpcEndpoint,
-    getCosmWasmClient,
-    getSigningCosmWasmClient,
-    getOfflineSigner,
-  } = useChain(chainName);
-  console.log('address', address)
-  console.log('contractsAddress', contractsAddress)
+  
+  // dynamic wallet/client connections
+  const manager = useManager()
+  // console.log('manager', manager);
+  // const { address } = useChain(chainName)
 
   // check page address
   if (query.collection && !contractsAddress) setContractsAddress({
@@ -104,22 +135,36 @@ export default function NftDetail() {
     useLazyQuery<Collection>(COLLECTION);
 
   const getCollectionInfo = async () => {
-    console.log('HERE!!!!!!!!!!!!!!!!!!!!!')
-    if (!address || !contractsAddress) return;
+    console.log('HERE getCollectionInfo!!!!!!!!!!!!!!!!!!!!!', currentChainName)
+    if (!contractsAddress || !currentChainName) return;
 
     getCollectionImage({
       variables: {
         collectionAddr: contractsAddress.sg721,
       },
     });
+    // const {
+    //   address,
+    //   getRpcEndpoint,
+    //   getCosmWasmClient,
+    //   getSigningCosmWasmClient,
+    //   getOfflineSigner,
+    // } = useChain(currentChainName);
+    // setAddress(address)
+    // console.log('address', address)
 
     try {
-      const cosmWasmClient = await getCosmWasmClient();
+      const repo = manager.getWalletRepo(currentChainName)
+      console.log('repo', currentChainName, repo)
+      // if (repo.isWalletDisconnected) await repo.connect()
+      if (repo.current?.address) setAddress(repo.current.address)
+
+      const cosmWasmClient = await repo.getCosmWasmClient();
       console.log('cosmWasmClient', cosmWasmClient);
-      const signerCosmWasmClient = await getSigningCosmWasmClient();
-      console.log('signerCosmWasmClient', signerCosmWasmClient);
-      const offlineSignerCosmWasmClient = await getOfflineSigner();
-      console.log('offlineSignerCosmWasmClient', offlineSignerCosmWasmClient);
+      // const signerCosmWasmClient = await repo.getSigningCosmWasmClient();
+      // console.log('signerCosmWasmClient', signerCosmWasmClient);
+      // const offlineSignerCosmWasmClient = await repo.getOfflineSigner();
+      // console.log('offlineSignerCosmWasmClient', offlineSignerCosmWasmClient);
 
       // // *MINTER QUERY*
       // const { VendingMinterQueryClient } = contracts.VendingMinter;
@@ -160,13 +205,18 @@ export default function NftDetail() {
         contractsAddress.sg721
       );
       console.log('sg721QueryClient', sg721QueryClient)
-      const [collectionInfo, contractInfo, minterInfo] = await Promise.all([
-        sg721QueryClient.collectionInfo(),
+      // const [collectionInfo, contractInfo, minterInfo] = await Promise.all([
+      //   sg721QueryClient.collectionInfo(),
+      //   sg721QueryClient.contractInfo(),
+      //   sg721QueryClient.minter(),
+      // ]);
+      // const sg721: SG721 = { ...collectionInfo, ...contractInfo, ...minterInfo };
+      const [contractInfo] = await Promise.all([
         sg721QueryClient.contractInfo(),
-        sg721QueryClient.minter(),
       ]);
-      const sg721: SG721 = { ...collectionInfo, ...contractInfo, ...minterInfo };
+      const sg721: SG721 = { ...contractInfo, };
       console.log('sg721', sg721)
+      console.log('parseClassId', parseClassId(`${sg721.name}`))
       const nftInfo = await sg721QueryClient.allNftInfo({ tokenId: `${query.tokenId}` || '' })
       setTokenUri(nftInfo)
       console.log('nftInfo', nftInfo)
@@ -176,6 +226,7 @@ export default function NftDetail() {
         // collectionInfo: { minter, sg721, whitelist },
         collectionInfo: { sg721 },
       }));
+      console.log('>>>>>>> DATA', data)
       setHasData(true);
     } catch (error) {
       console.error(error);
@@ -185,7 +236,6 @@ export default function NftDetail() {
 
   const getData = async () => {
     setIsLoading(true);
-    console.log('HERE!!!!!!!!!!!!!!!!!!!!!')
     // await Promise.all([getBalance(), getStarsPrice(), getCollectionInfo()]);
     await Promise.all([getCollectionInfo()]);
     setIsLoading(false);
@@ -257,13 +307,22 @@ export default function NftDetail() {
   // };
 
   useEffect(() => {
+    console.log('HERE currentChainName!!!!!!!!!!!!!!!!!!!!!', currentChainName)
+    getData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentChainName]);
+  
+  useEffect(() => {
     if (!contractsAddress) {
       setIsLoading(true);
       return;
     }
     console.log('HERE!!!!!!!!!!!!!!!!!!!!!')
-    // if (collectionsQuery.data) getMinterContractAddr();
-    if (contractsAddress) getData();
+    if (!contractsAddress.sg721) return;
+    const currentChain = getChainForAddress(contractsAddress.sg721)
+    if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
+    console.log('HERE currentChain!!!!!!!!!!!!!!!!!!!!!', currentChain, currentChainName)
+    // if (contractsAddress) getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress]); //, collectionsQuery.data
 
@@ -335,9 +394,10 @@ export default function NftDetail() {
     : getHttpUrl(data.collectionInfo?.sg721.image);
   const imageUrl = token?.image ? getHttpUrl(token?.image) : collectionImageUrl
   console.log('token', token)
-  const collectionDescription = (data.collectionInfo?.sg721.description.length || 0) > 250
-    ? data.collectionInfo?.sg721.description.slice(0, 250) + '...'
-    : data.collectionInfo?.sg721.description
+  const collectionDescription = ''
+  // const collectionDescription = (data?.collectionInfo?.sg721?.description.length || 0) > 250
+  //   ? data?.collectionInfo?.sg721?.description.slice(0, 250) + '...'
+  //   : data?.collectionInfo?.sg721?.description || ''
   const tokenDescription = token?.description ? token?.description : collectionDescription
   const tokenChain = contractsAddress?.sg721 ? getChainForAddress(contractsAddress.sg721) : null
   const market = contractsAddress?.sg721 ? getMarketForAddress(`${contractsAddress.sg721}`) : null
@@ -441,7 +501,7 @@ export default function NftDetail() {
               <div className="mt-8 lg:mt-0">
                 <div className="flex items-center justify-between">
                   <div>
-                    <a className="mb-2 text-xs font-semibold uppercase text-pink-500 hover:text-pink" href="/marketplace/stars19jq6mj84cnt9p7sagjxqf8hxtczwc8wlpuwe4sh62w45aheseues57n420">{data.collectionInfo?.sg721.name}</a>
+                    <a className="mb-2 text-xs font-semibold uppercase text-pink-500 hover:text-pink" href="">{data.collectionInfo?.sg721.name}</a>
                     <div className="mb-2 text-2xl font-semibold">{token.name}</div>
                   </div>
                 </div>
@@ -537,7 +597,7 @@ export default function NftDetail() {
                     <div className="text-sm text-white">22.1K STARS</div>
                   </div>
                 </div> */}
-                {/* <div className="col-span-2 mt-8 rounded-lg border border-zinc-800">
+                <div className="col-span-2 mt-8 rounded-lg border border-zinc-800">
                   <div className="border-b border-zinc-800 p-4 sm:flex sm:items-center">
                     <div className="inline-flex flex-col justify-center sm:flex-auto sm:flex-row">
                       <h1 className="inline-flex flex-auto items-center gap-2 font-semibold">
@@ -552,7 +612,7 @@ export default function NftDetail() {
                         <table className="min-w-full">
                           <thead>
                             <tr className="overflow-scroll">
-                              <th scope="col" className="sticky top-0 z-10 border-b border-zinc-800 px-3 py-3.5 text-left font-medium backdrop-blur justify-center text-sm"> Type</th>
+                              <th scope="col" className="sticky top-0 z-10 border-b border-zinc-800 px-3 py-3.5 text-left font-medium backdrop-blur justify-center text-sm"> Chain</th>
                               <th scope="col" className="sticky top-0 z-10 border-b border-zinc-800 px-3 py-3.5 font-medium backdrop-blur text-center text-sm sm:pl-4"> Price</th>
                               <th scope="col" className="sticky top-0 z-10 border-b border-zinc-800 px-3 py-3.5 font-medium backdrop-blur min-w-min text-center text-sm"> Floor Price (% Δ)</th>
                               <th scope="col" className="sticky top-0 z-10 border-b border-zinc-800 px-3 py-3.5 font-medium backdrop-blur text-center text-sm"> Expires</th>
@@ -560,43 +620,44 @@ export default function NftDetail() {
                             </tr>
                           </thead>
                           <tbody>
-                            <tr className=" hover:bg-zinc-900">
-                              <td
-                                className="border-b border-zinc-800 whitespace-nowrap py-4 pl-4 pr-3 text-center text-sm font-medium text-zinc-300 hover:text-white">
-                                <div data-tooltip-id=":r8p:" data-tooltip-content="Collection Offer" data-tooltip-place="top">
-                                  <div className="grid place-items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="h-5 w-5"> <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008z"> </path> </svg>
+                            {provenance.map((item, idx) => (
+                              <tr key={idx} className=" hover:bg-zinc-900">
+                                <td className="border-b border-zinc-800 whitespace-nowrap py-4 pl-4 pr-3 text-center text-sm font-medium text-zinc-300 hover:text-white">
+                                  <div>
+                                    <div className="grid place-items-center">
+                                      {item.chain.pretty_name}
+                                    </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300 hover:text-white"> 22.1K STARS</td>
-                              <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300 hover:text-white"> -31% below</td>
-                              <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300 hover:text-white"> in 14 days</td>
-                              <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300">
-                                <span className="group inline-flex max-w-full items-center gap-2 cursor-pointer text-pink-500 hover:text-pink-600">
-                                  <span className="max-w-full">
-                                    <a className="rounded-sm focus-visible:outline focus-visible:outline-pink-500 focus-visible:outline-2 focus-visible:outline-offset-2" href="/profile/stars13fmynf7lartwxfx4c3cv3afe07qlckzyudv8rz">
-                                      <span className="inline-flex relative overflow-hidden max-w-full">
-                                        <span aria-hidden="false" className="max-w-full break-all transition truncate">333mm.stars</span>
-                                        <span className="absolute inset-0 inline-flex items-center transition translate-y-8 opacity-0">
-                                          <span className="truncate" aria-hidden="true">stars13f...v8rz</span>
+                                </td>
+                                <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300 hover:text-white"> 22.1K STARS</td>
+                                <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300 hover:text-white"> -31% below</td>
+                                <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300 hover:text-white"> in 14 days</td>
+                                <td className="border-b border-zinc-800 whitespace-nowrap px-3 py-4 text-center text-sm text-zinc-300">
+                                  <span className="group inline-flex max-w-full items-center gap-2 cursor-pointer text-pink-500 hover:text-pink-600">
+                                    <span className="max-w-full">
+                                      <a className="rounded-sm focus-visible:outline focus-visible:outline-pink-500 focus-visible:outline-2 focus-visible:outline-offset-2" href="/profile/stars13fmynf7lartwxfx4c3cv3afe07qlckzyudv8rz">
+                                        <span className="inline-flex relative overflow-hidden max-w-full">
+                                          <span aria-hidden="false" className="max-w-full break-all transition truncate">333mm.stars</span>
+                                          <span className="absolute inset-0 inline-flex items-center transition translate-y-8 opacity-0">
+                                            <span className="truncate" aria-hidden="true">stars13f...v8rz</span>
+                                          </span>
                                         </span>
-                                      </span>
-                                    </a>
+                                      </a>
+                                    </span>
+                                    <button aria-label="Copy" className="w-4 h-4 text-white group/button relative inline focus:outline-none">
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-4 h-4 text-white inline absolute inset-0 scale-0 opacity-0 transition"> <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75"> </path> </svg>
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="w-4 h-4 text-white inline absolute inset-0 scale-0 opacity-0 transition group-hover:scale-100 group-hover:opacity-80 group-focus-visible/button:scale-110 group-focus-visible/button:opacity-100 group-hover/button:scale-110 group-active/button:scale-100"> <path d="M2 4.25A2.25 2.25 0 014.25 2h6.5A2.25 2.25 0 0113 4.25V5.5H9.25A3.75 3.75 0 005.5 9.25V13H4.25A2.25 2.25 0 012 10.75v-6.5z"> </path> <path d="M9.25 7A2.25 2.25 0 007 9.25v6.5A2.25 2.25 0 009.25 18h6.5A2.25 2.25 0 0018 15.75v-6.5A2.25 2.25 0 0015.75 7h-6.5z"> </path> </svg>
+                                    </button>
                                   </span>
-                                  <button aria-label="Copy" className="w-4 h-4 text-white group/button relative inline focus:outline-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-4 h-4 text-white inline absolute inset-0 scale-0 opacity-0 transition"> <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75"> </path> </svg>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="w-4 h-4 text-white inline absolute inset-0 scale-0 opacity-0 transition group-hover:scale-100 group-hover:opacity-80 group-focus-visible/button:scale-110 group-focus-visible/button:opacity-100 group-hover/button:scale-110 group-active/button:scale-100"> <path d="M2 4.25A2.25 2.25 0 014.25 2h6.5A2.25 2.25 0 0113 4.25V5.5H9.25A3.75 3.75 0 005.5 9.25V13H4.25A2.25 2.25 0 012 10.75v-6.5z"> </path> <path d="M9.25 7A2.25 2.25 0 007 9.25v6.5A2.25 2.25 0 009.25 18h6.5A2.25 2.25 0 0018 15.75v-6.5A2.25 2.25 0 0015.75 7h-6.5z"> </path> </svg>
-                                  </button>
-                                </span>
-                              </td>
-                            </tr>
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
                   </div>
-                </div> */}
+                </div>
               </div>
             </div>
           </div>

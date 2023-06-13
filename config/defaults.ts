@@ -34,16 +34,16 @@ export const getHttpUrl = (ipfsLink: string | undefined) => {
 
 export const getChainForAddress = (address: string): Chain | undefined => {
   const { prefix } = fromBech32(address)
-  return chains.find((chain) => chain.bech32_prefix === prefix)
+  return chains.find((chain) => chain.bech32_prefix === prefix && chain.network_type === networkType)
 }
 
 export const getChainByChainId = (chainId: string): Chain | undefined => {
-  return chains.find((chain) => chain.chain_id === chainId)
+  return chains.find((chain) => chain.chain_id === chainId && chain.network_type === networkType)
 }
 
 export const getChainAssets = (chain: Chain): AssetList => {
   return assets.find(
-    (a) => a.chain_name === chain.chain_name
+    (a) => a.chain_name === chain.chain_name || a.chain_name === `${chain.chain_name}`.replace('testnet', '')
   ) as AssetList;
 }
 
@@ -86,8 +86,6 @@ export const marketInfo = [
 ]
 
 export const getMarketForAddress = (address: string) => {
-  console.log(address);
-  
   if (!address || address.length < 10) return;
   const chain = getChainForAddress(address)
   if (!chain) return;

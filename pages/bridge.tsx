@@ -171,7 +171,7 @@ export default function Bridge() {
 
       console.log('link', link)
 
-      // if (link?.relayAll) await link.relayAll()
+      if (link?.relayAll) await link.relayAll()
       return link
     } catch (e) {
       console.log('e', e)
@@ -179,7 +179,7 @@ export default function Bridge() {
   }
 
   // if (typeof window !== 'undefined') setupIbcNftChannel()
-  // if (typeof window !== 'undefined') relayIbcNftTxns()
+  if (typeof window !== 'undefined') relayIbcNftTxns()
 
   return (
     <div>

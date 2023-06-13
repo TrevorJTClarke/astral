@@ -42,6 +42,10 @@ import {
 } from '../contexts/connections'
 import {
   queryNftContractsMsg,
+  queryNftOwnerTokensMsg,
+  queryNftTokenInfoMsg,
+  getNftOwnerTokens,
+  QueryChainAddresses,
 } from '../contexts/ics721'
 
 export interface ChainSelectable extends Chain {
@@ -59,12 +63,14 @@ const defaultSelectedNetworks = (): ChainSelectable[] => {
 const clients: any = {}
 
 export default function MyNfts() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
   const [hasData, setHasData] = useState(false);
   const [selectedChains, setSelectedChains] = useState<ChainSelectable[]>([]);
+  const [nftContractCache, setNftContractCache] = useState<any>({});
   const [nfts, setNfts] = useState<any[]>([]);
-  const [ownerAddresses, setOwnerAddresses] = useState<any>({});
+  const [ownerAddresses, setOwnerAddresses] = useState<QueryChainAddresses>({});
   const [getOwnedTokens, ownedTokensQuery] = useLazyQuery<OwnedTokens>(OWNEDTOKENS);
 
   // dynamic wallet/client connections
@@ -84,36 +90,58 @@ export default function MyNfts() {
 
   const getOwnedNFTs = async () => {
     if (!Object.keys(ownerAddresses).length) return;
-    console.log('getOwnedNFTs!!!!!!!!!!!!!!!!!!!!!', Object.keys(ownerAddresses).length, 'networks')
+    console.log('getOwnedNFTs!!!!!!!!!!!!!!!!!!!!!', Object.keys(ownerAddresses).length, 'networks', JSON.stringify(ownerAddresses))
 
-    // NOTE: This only works for stargaze!!!
-    if (ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']) getOwnedTokens({
-      variables: {
-        owner: ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1'],
-        // filterForSale: null,
-        // sortBy: "PRICE_ASC",
-        limit: 100
-      },
-    });
+    // TODO: Bring back!!
+    // // NOTE: This only works for stargaze!!!
+    // if (ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']) getOwnedTokens({
+    //   variables: {
+    //     owner: ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1'],
+    //     // filterForSale: null,
+    //     // sortBy: "PRICE_ASC",
+    //     limit: 100
+    //   },
+    // });
 
-    // Get all bridge contract addresses & their NFT addresses
-    let nftContracts: any = {}
-    for await (const chain_id of Object.keys(ownerAddresses)) {
-      const bridgeContracts = getBridgeContractsForChainId(chain_id)
-      console.log('bridgeContracts', chain_id, bridgeContracts)
+    const allNfts = await getNftOwnerTokens(clients, ownerAddresses)
+    console.log('allNfts', allNfts);
+    // setNfts(allNfts)
 
-      // Query each bridge for its NFT contracts
-      bridgeContracts.forEach(async addr => {
-        console.log('---- clients[chain_id]', chain_id, clients[chain_id], clients)
-        if (clients[chain_id]) try {
-          const contract_addr = await clients[chain_id].queryContractSmart(addr, queryNftContractsMsg())
-          console.log('contract_addr', contract_addr)
-          if (contract_addr) nftContracts[chain_id] = contract_addr
-        } catch (e) {
-          console.log('bridgeContracts NFT getter e', e)
-        }
-      })
-    }
+    const adjustedNfts: any[] = allNfts.map(nft => {
+      let n = { ...nft }
+      n.chain = getChainForAddress(n.collection_addr)
+      n.href = `my-nfts/${n.collection_addr}/${n.id}`
+      return n
+    })
+    console.log('adjustedNfts', adjustedNfts)
+
+    setNfts(adjustedNfts)
+    setHasData(true)
+
+    // // Get all bridge contract addresses & their NFT addresses
+    // let nftContracts: any = {}
+    // for await (const chain_id of Object.keys(ownerAddresses)) {
+    //   const bridgeContracts = getBridgeContractsForChainId(chain_id)
+    //   console.log('bridgeContracts', chain_id, bridgeContracts)
+
+    //   // Query each bridge for its NFT contracts
+    //   await bridgeContracts.forEach(async addr => {
+    //     console.log('---- clients[chain_id]', chain_id, clients[chain_id], clients)
+    //     if (clients[chain_id]) try {
+    //       const contract_addr = await clients[chain_id].queryContractSmart(addr, queryNftContractsMsg())
+    //       console.log('contract_addr', contract_addr)
+    //       if (!nftContracts[chain_id]) nftContracts[chain_id] = []
+    //       // a tuple is returns
+    //       contract_addr.forEach((ca: string[]) => {
+    //         if (ca[1] && !nftContracts[chain_id].includes(ca[1])) nftContracts[chain_id].push(ca[1])
+    //       })
+    //       setNftContractCache(nftContracts)
+    //     } catch (e) {
+    //       console.log('bridgeContracts NFT getter e', e)
+    //     }
+    //   })
+    //   console.log('nftContracts, ownerAddresses', JSON.stringify(nftContracts), ownerAddresses)
+    // }
   };
 
   const getData = async () => {
@@ -121,6 +149,27 @@ export default function MyNfts() {
     await Promise.all([getOwnedNFTs()]);
     setIsLoading(false);
   };
+  // const getNftOwnerTokens = async () => {
+  //   for await (const chain_id of Object.keys(nftContractCache)) {
+  //     if (ownerAddresses[chain_id] && nftContractCache[chain_id]) {
+  //       nftContractCache[chain_id].forEach(async (nftContract: string) => {
+  //         try {
+  //           const ownerTokens = await clients[chain_id].queryContractSmart(nftContract, queryNftOwnerTokensMsg(ownerAddresses[chain_id]))
+  //           console.log('>> ownerTokens', ownerTokens)
+  //         } catch (e) {
+  //           console.log('ownerTokens NFT getter e', e)
+  //         }
+  //       })
+  //     }
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   if (!isAuthed) return;
+  //   if (isLoadingProviders) return;
+  //   getNftOwnerTokens()
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [nftContractCache]);
 
   useEffect(() => {
     console.log('ownedTokensQuery!!!!!!!!!!!!!!!!!!!!!', ownedTokensQuery.variables.owner, ownedTokensQuery)
@@ -131,10 +180,11 @@ export default function MyNfts() {
       const adjustedTokens: any[] = tokens.map(tkn => {
         let t = {...tkn}
         t.chain = getChainForAddress(t.collectionAddr)
+        t.href = `my-nfts/${t.collectionAddr}/${t.tokenId}`
         return t
       })
       console.log('adjustedTokens', adjustedTokens)
-
+      // TODO: dedupe!
       setNfts(adjustedTokens)
       setHasData(true)
     }
@@ -143,10 +193,13 @@ export default function MyNfts() {
   }, [ownedTokensQuery.data]);
   
   useEffect(() => {
+    console.log('isAuthed, isLoadingProviders', isAuthed, isLoadingProviders);
+    
     if (!isAuthed) return;
+    if (isLoadingProviders) return;
     getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerAddresses]);
+  }, [isLoadingProviders, isAuthed]);
 
   useEffect(() => {
     // Need to check at least 1 chain is authed
@@ -156,9 +209,17 @@ export default function MyNfts() {
       for await (const chain of selectedChains) {
         if (!chain.selected) return;
         const repo = manager.getWalletRepo(chain.chain_name)
-        if (repo.current?.address) setOwnerAddresses({ ...ownerAddresses, [`${chain.chain_id}`]: repo.current.address })
+        if (repo.isWalletDisconnected) await repo.connect()
+        if (repo.current?.address) {
+          const newAddresses = [repo.current.address]
+          ownerAddresses[chain.chain_id] = newAddresses
+          setOwnerAddresses(ownerAddresses)
+        }
         clients[chain.chain_id] = await repo.getCosmWasmClient()
+        console.log('chain.chain_id', chain.chain_id, repo)
       }
+      console.log('setIsLoadingProviders')
+      setIsLoadingProviders(false)
     })();
  
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,7 +314,7 @@ export default function MyNfts() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-8 xl:grid-cols-4">
             {nfts.map((nft, idx) => (
               <div key={idx} className="group relative h-full overflow-hidden bg-white transition-shadow divide-y rounded-lg shadow-sm divide-neutral-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black group/card border border-zinc-800 focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2">
-                <Link className="z-[2] focus:outline-none" href={'my-nfts/' + nft.collectionAddr + '/' + nft.tokenId}>
+                <Link className="z-[2] focus:outline-none" href={`${nft.href}`}>
                   <div className="relative bg-neutral-50 dark:bg-black">
                     <div>
                       <NftImage uri={nft.imageUrl} alt={nft.name} />
