@@ -12,8 +12,8 @@ export const navItems: NavProps[] = [
   },
   {
     // For bridging (launching) a collection on another chain, provisioning the channel/connections for a classId
-    title: 'Bridge',
-    href: '/bridge'
+    title: 'Tools',
+    href: '/tools'
   },
 ];
 

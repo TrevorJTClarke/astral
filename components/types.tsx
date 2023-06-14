@@ -1,4 +1,6 @@
 import { MouseEventHandler, ReactNode } from 'react'
+import { AssetList, Asset, Chain } from '@chain-registry/types';
+import { CollectionInfoResponse, ContractInfoResponse } from 'stargazejs/types/codegen/SG721Base.types'
 
 export interface ChooseChainInfo {
   chainName: string
@@ -52,29 +54,15 @@ export type Rename<T, K extends keyof T, R extends PropertyKey> = Omit<T, K> & {
   [P in R]: T[K];
 };
 
-export type Minter = VendingMinterConfigResponse &
-  Rename<MintableNumTokensResponse, 'count', 'remaining_tokens'> &
-  Rename<Omit<MintCountResponse, 'address'>, 'count', 'user_minted'> & {
-    all_prices: MintPriceResponse;
-  };
-
 export type SG721 = CollectionInfoResponse & ContractInfoResponse;
-
-export type Whitelist = WhitelistConfigResponse;
 
 export enum TransactionResult {
   Success = 0,
   Failed = 1,
 }
 
-export type TData = {
-  balanceAmount: string;
-  starsPrice: number;
-  collectionInfo: {
-    minter?: Minter;
-    sg721: SG721;
-    whitelist?: Whitelist;
-  };
+export interface TData extends SG721 {
+  minter?: string;
 };
 
 export type Token = {
@@ -156,3 +144,13 @@ export type Tokens = {
 export type OwnedTokens = {
   tokens: Tokens;
 };
+
+export interface Provenance {
+  is_origin: boolean
+  nft_addr: string
+  chain?: Chain
+  asset?: Asset
+  bridge_addr?: string
+  channel_id?: string
+  class_id?: string
+}

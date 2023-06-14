@@ -350,6 +350,8 @@ console.log('extendedChannels', extendedChannels)
 export const availableNetworks: Chain[] | undefined = Object.values(networkMap)
 console.log('availableNetworks', availableNetworks)
 
+export const getContractFromPort = (port: string) => `${port}`.search('wasm') > -1 ? `${port}`.split('.')[1] : null
+
 export const getBridgeContractsForChainId = (chain_id: string): string[] => {
   const contractAddresses: string[] = []
 
@@ -357,10 +359,23 @@ export const getBridgeContractsForChainId = (chain_id: string): string[] => {
     Object.keys(channels).forEach((cid: string) => {
       if (chain_id != channels[cid].chain_id) return;
       const port = channels[cid].port
-      const contract_addr = `${port}`.search('wasm') > -1 ? `${port}`.split('.')[1] : null
+			const contract_addr = getContractFromPort(port)
       if (contract_addr && !contractAddresses.includes(contract_addr)) contractAddresses.push(contract_addr)
     })
   })
 
   return contractAddresses
+}
+
+export const isBridgeAddress = (addr: string): boolean => {
+  let isBridge = false
+
+  connectionChannels.forEach((channels: NFTConnectionChain) => {
+    Object.keys(channels).forEach((cid: string) => {
+      const port = channels[cid].port
+			if (`${port}`.search(addr) > -1) isBridge = true
+    })
+  })
+
+	return isBridge
 }
