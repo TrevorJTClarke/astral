@@ -4,7 +4,13 @@ import { Order } from "cosmjs-types/ibc/core/channel/v1/channel";
 import {
   CosmWasmSigner,
 } from "@confio/relayer/build/lib";
-import { createIbcConnectionAndChannel, createIbcRelayLinkFromExisting } from '../contexts/ibc'
+import {
+  createIbcConnectionAndChannel,
+  createIbcRelayLinkFromExisting,
+  getIcsNftChannels,
+  getIcsNftChannelConnection,
+  getLinkForChannel,
+} from '../contexts/ibc'
 import { OfflineSigner } from "@cosmjs/proto-signing";
 
 // TODO: Move to env!
@@ -31,6 +37,34 @@ const bridgeRegistry = {
     connection: "connection-562",
   },
 }
+
+// {
+//     "state": 3,
+//     "ordering": 1,
+//     "counterparty": {
+//         "portId": "wasm.juno17f8seg2s7vekzjf9u340krujcvyx3sqrj6ggcukhp9dyv64hhdxqkm4frn",
+//         "channelId": "channel-443"
+//     },
+//     "connectionHops": [
+//         "connection-484"
+//     ],
+//     "version": "ics721-1",
+//     "portId": "wasm.stars1qpl2xtwgrlnhg7c5f56tn8sgru53yxae8qx6zcxcz40fnfa9vk2sypwh0e",
+//     "channelId": "channel-468"
+// }
+
+// {
+// 		channel_a: {
+// 			chain_id: "elgafar-1",
+// 			port: "wasm.stars1qpl2xtwgrlnhg7c5f56tn8sgru53yxae8qx6zcxcz40fnfa9vk2sypwh0e",
+// 			channel: "channel-468",
+// 		},
+// 		channel_b: {
+// 			chain_id: "uni-6",
+// 			port: "wasm.juno17f8seg2s7vekzjf9u340krujcvyx3sqrj6ggcukhp9dyv64hhdxqkm4frn",
+// 			channel: "channel-443",
+// 		},
+// 	},
 
 let init = false
 
@@ -78,8 +112,6 @@ export default function Bridge() {
       console.log('aSignerClient', aSignerClient);
       console.log('aSignerClient IBC', aSigner);
 
-
-
       const repoB = manager.getWalletRepo(jntn)
       console.log('repoB', repoB);
       const bSignerWallet = await repoB.getWallet('keplr-extension')
@@ -121,8 +153,8 @@ export default function Bridge() {
       const chainB = useChain(jntn);
       console.log('chainB', chainB);
       const repoA = manager.getWalletRepo(sgtn)
-      // if (repoA.isWalletDisconnected) await repoA.connect('stargazetestnet')
-      // if (repoB.isWalletDisconnected) await repoB.connect('keplr-extension')
+      // if (repoA.isWalletDisconnected) await repoA.connect(repo.wallets[0].walletName, true)
+      // if (repoB.isWalletDisconnected) await repoB.connect(repo.wallets[0].walletName, true)
       console.log('repoA', repoA);
       const aSignerWallet = await repoA.getWallet('keplr-extension')
       const aSigner = await aSignerWallet.getSigningCosmWasmClient()
@@ -156,20 +188,48 @@ export default function Bridge() {
       console.log('bSignerClient', bSignerClient);
       console.log('bOfflineClient', bOfflineClient);
 
+      // const icsChannels = await getIcsNftChannels(
+      //   aSignerClient,
+      //   aOfflineClient,
+      // )
+      // console.log('icsChannels', icsChannels)
 
-      const link = await createIbcRelayLinkFromExisting(
+      // const icsChannel = await getIcsNftChannelConnection(
+      //   aSignerClient,
+      //   aOfflineClient,
+      //   bSignerClient,
+      //   bOfflineClient,
+      //   "wasm.stars1qpl2xtwgrlnhg7c5f56tn8sgru53yxae8qx6zcxcz40fnfa9vk2sypwh0e",
+      //   'channel-468',
+      // )
+      // // const icsChannel = await getIcsNftChannelConnection(
+      // //   aSignerClient,
+      // //   aOfflineClient,
+      // //   "nft-transfer",
+      // //   // 'channel-0',
+      // //   'channel-190',
+      // // )
+      // console.log('icsChannel', icsChannel)
+
+
+      // const link = await createIbcRelayLinkFromExisting(
+      //   aSignerClient,
+      //   aOfflineClient,
+      //   bridgeRegistry.juno.connection,
+      //   bSignerClient,
+      //   bOfflineClient,
+      //   bridgeRegistry.stargaze.connection,
+      // );
+      const link = await getLinkForChannel(
         aSignerClient,
         aOfflineClient,
-        // bridgeRegistry.stargaze.connection,
-        // bridgeRegistry.stargaze.clientID,
-        // bridgeRegistry.stargaze.channel,
-        bridgeRegistry.juno.connection,
         bSignerClient,
         bOfflineClient,
-        bridgeRegistry.stargaze.connection,
+        "wasm.stars1qpl2xtwgrlnhg7c5f56tn8sgru53yxae8qx6zcxcz40fnfa9vk2sypwh0e",
+        'channel-468',
       );
 
-      console.log('link', link)
+      // console.log('link', link)
 
       if (link?.relayAll) await link.relayAll()
       return link

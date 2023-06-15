@@ -11,6 +11,7 @@ import { ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client';
 import { getSigningCosmosClientOptions } from 'stargazejs';
 
 import { TailwindModal } from '../components';
+import { networkType } from '../config';
 import { ThemeProvider } from '../contexts/theme';
 
 import { SignerOptions } from '@cosmos-kit/core';
@@ -18,25 +19,31 @@ import { chains, assets } from 'chain-registry';
 import { Chain } from '@chain-registry/types';
 
 const client = new ApolloClient({
-  // TODO: Testnet setup! env var!
-  // uri: 'https://constellations-api.mainnet.stargaze-apis.com/graphql',
-  uri: 'https://constellations-api.testnet.stargaze-apis.com/graphql',
+  uri: networkType === 'testnet'
+    ? 'https://constellations-api.testnet.stargaze-apis.com/graphql'
+    : 'https://constellations-api.mainnet.stargaze-apis.com/graphql',
   cache: new InMemoryCache(),
 });
 
+const defaultGasForChain = (chain: Chain) => {
+  let gasPrice: any = `0.04${chain.bech32_prefix}`
+  if (chain?.fees && chain?.fees.fee_tokens) {
+    const fee = chain?.fees.fee_tokens[0]
+    const feeDenom = `${fee.denom}`.search('ibc/') === -1 ? `u${fee.denom.replace('u', '')}` : fee.denom
+    const feeUnit = `${fee.average_gas_price || fee.low_gas_price || fee.fixed_min_gas_price || 0}${feeDenom}`
+    try {
+      gasPrice = GasPrice.fromString(feeUnit)
+    } catch (e) {
+      // console.error(e)
+    }
+  }
+  return { gasPrice };
+}
+
 function AstralApp({ Component, pageProps }: AppProps) {
   const signerOptions: SignerOptions = {
-    signingStargate: (_chain: Chain) => {
-      return getSigningCosmosClientOptions();
-    },
-    signingCosmwasm: (chain: Chain) => {
-      switch (chain.chain_name) {
-        case 'stargaze':
-          return {
-            gasPrice: GasPrice.fromString('0.0025ustars'),
-          };
-      }
-    },
+    signingStargate: defaultGasForChain,
+    signingCosmwasm: defaultGasForChain,
   };
 
   return (

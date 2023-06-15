@@ -209,7 +209,7 @@ export default function MyNfts() {
       for await (const chain of selectedChains) {
         if (!chain.selected) return;
         const repo = manager.getWalletRepo(chain.chain_name)
-        if (repo.isWalletDisconnected) await repo.connect()
+        if (repo.isWalletDisconnected) await repo.connect(repo.wallets[0].walletName, true)
         if (repo.current?.address) {
           const newAddresses = [repo.current.address]
           ownerAddresses[chain.chain_id] = newAddresses

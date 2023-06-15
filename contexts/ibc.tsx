@@ -6,7 +6,7 @@ import {
   RelayInfo,
   IbcClient,
 } from "@confio/relayer/build/lib";
-import { ExecuteResult, InstantiateResult } from "@cosmjs/cosmwasm-stargate";
+import { CosmWasmClient, ExecuteResult, InstantiateResult } from "@cosmjs/cosmwasm-stargate";
 import { GasPrice } from "@cosmjs/stargate";
 import { ChannelPair } from "@confio/relayer/build/lib/link";
 import { fromBase64, fromUtf8 } from "@cosmjs/encoding";
@@ -178,10 +178,8 @@ export async function ibcSigningClient(
     estimatedIndexerTime: opts.estimatedIndexerTime,// || 6000,
   };
   try {
-    const ibcClient = await IbcClient.connectWithSigner(opts.tendermintUrlHttp, client, account.address, options);
-    console.log('ibcSigningClient --', opts.minFee, ibcClient);
-
-    return ibcClient;
+    const ibcClient = await IbcClient.connectWithSigner(opts.tendermintUrlHttp, client, account.address, options)
+    return ibcClient
   } catch (e) {
     throw e
   }
@@ -198,19 +196,16 @@ export async function createIbcConnectionAndChannel(
   version: string
 ): Promise<ChannelInfo> {
   const { ibcPortId: aContractIbcPortId } =
-    await aSignerClient.sign.getContract(aContractAddress);
+    await aSignerClient.sign.getContract(aContractAddress)
   console.log('aContractIbcPortId', aContractIbcPortId)
   assert(aContractIbcPortId);
   const { ibcPortId: bContractIbcPortId } =
-    await bSignerClient.sign.getContract(bContractAddress);
+    await bSignerClient.sign.getContract(bContractAddress)
   console.log('bContractIbcPortId', bContractIbcPortId)
   assert(bContractIbcPortId);
 
-  // TODO: prefix & minFee
-  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: '', minFee: '0.0025ustars', tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger);
-  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: '', minFee: '0.0025ujuno', tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger);
-  console.log('aIbcClient', aIbcClient)
-  console.log('bIbcClient', bIbcClient)
+  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: `${aSignerClient.sign?.gasPrice?.denom.replace('u', '')}`, minFee: `0.0025${aSignerClient.sign?.gasPrice?.denom}`, tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger)
+  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: `${aSignerClient.sign?.gasPrice?.denom.replace('u', '')}`, minFee: `0.0025${bSignerClient.sign?.gasPrice?.denom}`, tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger)
 
   // create a connection and channel
   let link 
@@ -244,21 +239,99 @@ export async function createIbcRelayLinkFromExisting(
   bOfflineClient: OfflineSigner,
   connB: string,
 ): Promise<Link> {
-  // TODO: prefix & minFee
-  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: '', minFee: '0.0025ustars', tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger);
-  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: '', minFee: '0.0025ujuno', tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger);
-  console.log('aIbcClient', aIbcClient)
-  console.log('bIbcClient', bIbcClient)
-  console.log('---- connA aIbcClient --- connA', await aIbcClient.query.ibc.connection.connection(connA))
+  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: `${aSignerClient.sign?.gasPrice?.denom.replace('u', '')}`, minFee: `0.0025${aSignerClient.sign?.gasPrice?.denom}`, tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger)
+  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: `${aSignerClient.sign?.gasPrice?.denom.replace('u', '')}`, minFee: `0.0025${bSignerClient.sign?.gasPrice?.denom}`, tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger)
 
-  // create a link from existing
-  let link 
   try {
-    link = await Link.createWithExistingConnections(aIbcClient, bIbcClient, connA, connB, logger);
+    const link = await Link.createWithExistingConnections(aIbcClient, bIbcClient, connA, connB, logger);
     return link;
   } catch (e) {
-    console.log('LINK FAILED')
+    console.log('LINK FAILED', e)
     throw e
+  }
+}
+
+export async function getIcsNftChannels(
+  signerClient: CosmWasmSigner,
+  offlineClient: OfflineSigner,
+): Promise<any[]> {
+  const ibcClient = await ibcSigningClient(offlineClient, { prefix: '', minFee: '0.0025ustars', tendermintUrlHttp: signerClient.sign?.tmClient?.client?.url || '' }, logger);
+  const allConnections = await ibcClient.query.ibc.channel.allChannels()
+
+  // TODO: env!
+  const ports = ['nft-transfer', 'wasm.juno17f8seg2s7vekzjf9u340krujcvyx3sqrj6ggcukhp9dyv64hhdxqkm4frn', 'wasm.stars1qpl2xtwgrlnhg7c5f56tn8sgru53yxae8qx6zcxcz40fnfa9vk2sypwh0e']
+
+  // filter to known ports and version `ics721-1`
+  return allConnections.channels.filter(c => {
+    // return ports.includes(c.portId) && c.version === `ics721-1`
+    return ports.includes(c.counterparty.portId) && c.version === `ics721-1`
+  })
+}
+
+export async function getIcsNftChannelConnection(
+  aSignerClient: CosmWasmSigner,
+  aOfflineClient: OfflineSigner,
+  bSignerClient: CosmWasmSigner,
+  bOfflineClient: OfflineSigner,
+  portId: string,
+  channelId: string,
+): Promise<any> {
+  const aIbcClient = await ibcSigningClient(aOfflineClient, { prefix: `${aSignerClient.sign?.gasPrice?.denom.replace('u', '')}`, minFee: `0.0025${aSignerClient.sign?.gasPrice?.denom}`, tendermintUrlHttp: aSignerClient.sign?.tmClient?.client?.url || '' }, logger);
+  const bIbcClient = await ibcSigningClient(bOfflineClient, { prefix: `${aSignerClient.sign?.gasPrice?.denom.replace('u', '')}`, minFee: `0.0025${bSignerClient.sign?.gasPrice?.denom}`, tendermintUrlHttp: bSignerClient.sign?.tmClient?.client?.url || '' }, logger);
+  let connectionA, connectionB;
+  
+  try {
+    connectionA = await aIbcClient.query.ibc.channel.channel(portId, channelId)
+  } catch (e) {
+    return Promise.reject(e)
+  }
+  
+  try {
+    connectionB = await bIbcClient.query.ibc.channel.channel(connectionA.channel?.counterparty?.portId, connectionA.channel?.counterparty?.channelId)
+  } catch (e) {
+    return Promise.reject(e)
+  }
+  
+  return {
+    channelA: connectionA?.channel,
+    channelB: connectionB?.channel,
+  }
+}
+
+export async function getLinkForChannel(
+  aSignerClient: CosmWasmSigner,
+  aOfflineClient: OfflineSigner,
+  bSignerClient: CosmWasmSigner,
+  bOfflineClient: OfflineSigner,
+  portId?: string,
+  channelId?: string,
+): Promise<Link> {
+  if (!portId || !channelId) return Promise.reject('Missing port or channel!')
+  
+  try {
+    const icsChannel = await getIcsNftChannelConnection(
+      aSignerClient,
+      aOfflineClient,
+      bSignerClient,
+      bOfflineClient,
+      portId,
+      channelId,
+    )
+    console.log('icsChannel, ', icsChannel)
+
+    const link = await createIbcRelayLinkFromExisting(
+      aSignerClient,
+      aOfflineClient,
+      icsChannel.channelA.connectionHops[0],
+      bSignerClient,
+      bOfflineClient,
+      icsChannel.channelB.connectionHops[0],
+    );
+
+    return link
+  } catch (e) {
+    console.log('e', e)
+    return Promise.reject(e)
   }
 }
 

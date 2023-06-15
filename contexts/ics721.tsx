@@ -7,6 +7,7 @@ import {
 } from './connections'
 import {
   getHttpUrl,
+  getChainForAddress,
 } from '../config'
 
 // example; 'p6/c6/p4/c4/p2/c2/nftClass'
@@ -84,15 +85,17 @@ export const queryNftTokenInfoMsg = (token_id: string) => {
 }
 
 export async function getMsgSendIcsNft(client: CosmWasmClient, options: MsgSendIcsOptions): Promise<ICS721SendNFT> {
-  // TODO: Get current height on sending client chain
-
+  const height = await client.getHeight()
+  if (!height) return Promise.reject('Block height request failed');
+  const chain = getChainForAddress(options.receiver)
+  const revision = chain?.chain_id ? parseInt(`${chain?.chain_id}`.split('-')[1]) : 1
   const ibcTransferMsg: IBCTransferMsg = {
     receiver: options.receiver,
     channel_id: options.channel_id,
     timeout: {
       block: {
-        revision: 1,
-        height: 0
+        revision,
+        height: height + 30
       }
     }
   }
@@ -110,41 +113,34 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
   const nftContracts: string[] = []
   const nftHoldings: QueryChainAddresses = {}
   const bridgeContracts = getBridgeContractsForChainId(chain_id)
-  console.log('bridgeContracts', chain_id, bridgeContracts)
 
   // Query each bridge for its NFT contracts
   await Promise.all(bridgeContracts.map(addr => {
-    console.log('---- clients[chain_id]', chain_id, client)
     try {
       return client.queryContractSmart(addr, queryNftContractsMsg())
     } catch (e) {
-      console.log('bridgeContracts NFT contract getter e', e)
       return Promise.reject(e)
     }
   })).then(contractAddresses => {
     contractAddresses.forEach(contract_addr => {
-      console.log('contract_addr', contract_addr)
       // a tuple is returns
       if (contract_addr) contract_addr.forEach((ca: string[]) => {
         if (ca[1] && !nftContracts.includes(ca[1])) nftContracts.push(ca[1])
       })
     })
   })
-  .catch(error => console.log(error));
-  console.log('getNftOwnerTokens nftContracts', JSON.stringify(nftContracts))
+  .catch(error => console.log(error))
 
   const nftOwnerTokenIds = await Promise.all(nftContracts.map(nft => {
     try {
       return client.queryContractSmart(nft, queryNftOwnerTokensMsg(ownerAddress))
     } catch (e) {
-      console.log('bridgeContracts NFT contract getter e', e)
       return Promise.reject(e)
     }
   }))
-  .catch(error => console.log(error));
+  .catch(error => console.log(error))
 
   nftOwnerTokenIds.forEach((data: any, idx: number) => {
-    console.log('queryNftOwnerTokensMsg data', data);
     if (data?.tokens && data.tokens.length > 0) {
       if (!nftHoldings[nftContracts[idx]]) nftHoldings[nftContracts[idx]] = []
       data.tokens.forEach(tokenId => {
@@ -173,7 +169,6 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
   })
 
   const nft_token_info = await Promise.all(p2)
-  console.log('nft_token_info', nft_token_info)
 
   nft_token_info.forEach(ti => {
     const tokenUri = ti.info && ti.info.token_uri ? ti.info.token_uri : null
@@ -181,7 +176,6 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
   })
 
   const nft_token_data = await Promise.all(p3)
-  console.log('nft_token_data', nft_token_data)
 
   return nft_token_data.map((token: NftTokenContractData, idx: number) => {
     const d = {
@@ -196,8 +190,6 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
 
 export async function getNftOwnerTokens(clients: QueryChainClients, addresses: QueryChainAddresses): Promise<any[]> {
   let allNfts: any[] = []
-  console.log('clientsclientsclients', Object.keys(clients), clients)
-  console.log('addressesaddressesaddresses', Object.keys(addresses), addresses)
   for await (const chain_id of Object.keys(addresses)) {
     for await (const address of addresses[chain_id]) {
       if (clients[chain_id]) {
