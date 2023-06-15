@@ -34,6 +34,7 @@ import {
   getHttpUrl,
   toDisplayAmount,
   getChainForAddress,
+  getChainAssets,
   marketInfo,
 } from '../config'
 import {
@@ -75,9 +76,7 @@ export default function MyNfts() {
 
   // dynamic wallet/client connections
   const manager = useManager()
-  // console.log('manager', manager);
   const { address } = useChain(chainName)
-  console.log('address', address);
 
   const updateSelectedChains = (chain: ChainSelectable, idx: number) => {
     if (selectedChains[idx].selected != chain.selected) return;
@@ -90,111 +89,90 @@ export default function MyNfts() {
 
   const getOwnedNFTs = async () => {
     if (!Object.keys(ownerAddresses).length) return;
-    console.log('getOwnedNFTs!!!!!!!!!!!!!!!!!!!!!', Object.keys(ownerAddresses).length, 'networks', JSON.stringify(ownerAddresses))
-
-    // TODO: Bring back!!
-    // // NOTE: This only works for stargaze!!!
-    // if (ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']) getOwnedTokens({
-    //   variables: {
-    //     owner: ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1'],
-    //     // filterForSale: null,
-    //     // sortBy: "PRICE_ASC",
-    //     limit: 100
-    //   },
-    // });
+    // NOTE: This only works for stargaze!!!
+    console.log('getOwnedNFTs ownerAddresses', ownerAddresses)
+    if (ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']) {
+      const ownerAddrs = ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']
+      // TODO: finish this!
+      // if (ownedTokensQuery.data) getExternalNfts()
+      // else 
+      ownerAddrs.forEach(owner => {
+        getOwnedTokens({
+          variables: {
+            owner,
+            // filterForSale: null,
+            // sortBy: "PRICE_ASC",
+            limit: 100
+          },
+        })
+      })
+    }
 
     const allNfts = await getNftOwnerTokens(clients, ownerAddresses)
-    console.log('allNfts', allNfts);
-    // setNfts(allNfts)
-
     const adjustedNfts: any[] = allNfts.map(nft => {
       let n = { ...nft }
       n.chain = getChainForAddress(n.collection_addr)
       n.href = `my-nfts/${n.collection_addr}/${n.id}`
+      n.token_id = n.id
+      if (n.chain) {
+        const assetList = getChainAssets(n.chain)
+        n.asset = assetList?.assets ? assetList.assets[0] : null
+      }
       return n
     })
-    console.log('adjustedNfts', adjustedNfts)
 
-    setNfts(adjustedNfts)
-    setHasData(true)
+    applyDedupeNfts(adjustedNfts)
+  }
 
-    // // Get all bridge contract addresses & their NFT addresses
-    // let nftContracts: any = {}
-    // for await (const chain_id of Object.keys(ownerAddresses)) {
-    //   const bridgeContracts = getBridgeContractsForChainId(chain_id)
-    //   console.log('bridgeContracts', chain_id, bridgeContracts)
-
-    //   // Query each bridge for its NFT contracts
-    //   await bridgeContracts.forEach(async addr => {
-    //     console.log('---- clients[chain_id]', chain_id, clients[chain_id], clients)
-    //     if (clients[chain_id]) try {
-    //       const contract_addr = await clients[chain_id].queryContractSmart(addr, queryNftContractsMsg())
-    //       console.log('contract_addr', contract_addr)
-    //       if (!nftContracts[chain_id]) nftContracts[chain_id] = []
-    //       // a tuple is returns
-    //       contract_addr.forEach((ca: string[]) => {
-    //         if (ca[1] && !nftContracts[chain_id].includes(ca[1])) nftContracts[chain_id].push(ca[1])
-    //       })
-    //       setNftContractCache(nftContracts)
-    //     } catch (e) {
-    //       console.log('bridgeContracts NFT getter e', e)
-    //     }
-    //   })
-    //   console.log('nftContracts, ownerAddresses', JSON.stringify(nftContracts), ownerAddresses)
-    // }
-  };
+  const getExternalNfts = async () => {
+    if (ownedTokensQuery?.data?.tokens?.tokens) {
+      // adjust output for better UI facilitation
+      const { tokens } = ownedTokensQuery.data.tokens
+      const adjustedTokens: any[] = tokens.map(tkn => {
+        let t = { ...tkn }
+        t.chain = getChainForAddress(t.collectionAddr)
+        t.href = `my-nfts/${t.collectionAddr}/${t.tokenId}`
+        t.collection_addr = t.collectionAddr
+        t.token_id = t.tokenId
+        if (t.chain) {
+          const assetList = getChainAssets(t.chain)
+          t.asset = assetList?.assets ? assetList.assets[0] : null
+        }
+        return t
+      })
+      applyDedupeNfts(adjustedTokens)
+    }
+  }
 
   const getData = async () => {
     setIsLoading(true);
     await Promise.all([getOwnedNFTs()]);
     setIsLoading(false);
   };
-  // const getNftOwnerTokens = async () => {
-  //   for await (const chain_id of Object.keys(nftContractCache)) {
-  //     if (ownerAddresses[chain_id] && nftContractCache[chain_id]) {
-  //       nftContractCache[chain_id].forEach(async (nftContract: string) => {
-  //         try {
-  //           const ownerTokens = await clients[chain_id].queryContractSmart(nftContract, queryNftOwnerTokensMsg(ownerAddresses[chain_id]))
-  //           console.log('>> ownerTokens', ownerTokens)
-  //         } catch (e) {
-  //           console.log('ownerTokens NFT getter e', e)
-  //         }
-  //       })
-  //     }
-  //   }
-  // };
 
-  // useEffect(() => {
-  //   if (!isAuthed) return;
-  //   if (isLoadingProviders) return;
-  //   getNftOwnerTokens()
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [nftContractCache]);
+  const applyDedupeNfts = (newNfts: any[]) => {
+    setNfts((prevNfts: any[]) => {
+      const dedupedNfts: any[] = prevNfts
+
+      newNfts.forEach((newTkn: any) => {
+        let has = false
+        prevNfts.forEach(nft => {
+          if (nft.collection_addr === newTkn.collection_addr && nft.token_id === newTkn.token_id) has = true
+        })
+        if (!has) dedupedNfts.push(newTkn)
+      })
+
+      return dedupedNfts
+    })
+    setHasData(true)
+  }
 
   useEffect(() => {
-    console.log('ownedTokensQuery!!!!!!!!!!!!!!!!!!!!!', ownedTokensQuery.variables.owner, ownedTokensQuery)
-    if (ownedTokensQuery?.data?.tokens?.tokens) {
-      // adjust output for better UI facilitation
-      const { tokens } = ownedTokensQuery.data.tokens
-      console.log('tokens', tokens);
-      const adjustedTokens: any[] = tokens.map(tkn => {
-        let t = {...tkn}
-        t.chain = getChainForAddress(t.collectionAddr)
-        t.href = `my-nfts/${t.collectionAddr}/${t.tokenId}`
-        return t
-      })
-      console.log('adjustedTokens', adjustedTokens)
-      // TODO: dedupe!
-      setNfts(adjustedTokens)
-      setHasData(true)
-    }
-
+    getExternalNfts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownedTokensQuery.data]);
   
   useEffect(() => {
-    console.log('isAuthed, isLoadingProviders', isAuthed, isLoadingProviders);
-    
     if (!isAuthed) return;
     if (isLoadingProviders) return;
     getData();
@@ -206,19 +184,21 @@ export default function MyNfts() {
     setIsAuthed(typeof address !== 'undefined')
     if (!address) return;
     (async () => {
+      setIsLoadingProviders(true)
       for await (const chain of selectedChains) {
-        if (!chain.selected) return;
-        const repo = manager.getWalletRepo(chain.chain_name)
-        if (repo.isWalletDisconnected) await repo.connect(repo.wallets[0].walletName, true)
-        if (repo.current?.address) {
-          const newAddresses = [repo.current.address]
-          ownerAddresses[chain.chain_id] = newAddresses
-          setOwnerAddresses(ownerAddresses)
+        if (!chain.selected) ownerAddresses[chain.chain_id] = []
+        else {
+          const repo = manager.getWalletRepo(chain.chain_name)
+          if (repo.isWalletDisconnected) await repo.connect(repo.wallets[0].walletName, true)
+          if (repo.current?.address) {
+            const newAddresses = [repo.current.address]
+            ownerAddresses[chain.chain_id] = newAddresses
+          }
+          clients[chain.chain_id] = await repo.getCosmWasmClient()
         }
-        clients[chain.chain_id] = await repo.getCosmWasmClient()
-        console.log('chain.chain_id', chain.chain_id, repo)
       }
-      console.log('setIsLoadingProviders')
+      setNfts([])
+      setOwnerAddresses(ownerAddresses)
       setIsLoadingProviders(false)
     })();
  
@@ -313,23 +293,23 @@ export default function MyNfts() {
         <div className="relative px-4 pt-4 sm:mx-8 sm:pt-8 md:px-0">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-8 xl:grid-cols-4">
             {nfts.map((nft, idx) => (
-              <div key={idx} className="group relative h-full overflow-hidden bg-white transition-shadow divide-y rounded-lg shadow-sm divide-neutral-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black group/card border border-zinc-800 focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2">
+              <div key={idx} className="group cursor-pointer relative h-full overflow-hidden bg-white transition-shadow divide-y rounded-lg shadow-sm divide-neutral-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black group/card border border-zinc-800 focus-within:ring-2 focus-within:ring-pink-500 focus-within:ring-offset-2">
                 <Link className="z-[2] focus:outline-none" href={`${nft.href}`}>
                   <div className="relative bg-neutral-50 dark:bg-black">
                     <div>
                       <NftImage uri={nft.imageUrl} alt={nft.name} />
                     </div>
-                    <div className="transition-transition-all -mb-4 group-hover:mb-0 duration-300 opacity-0 group-hover:opacity-100 flex justify-between inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 lg:absolute lg:pt-24">
+                    <div className="transition-transition-all -mb-2 group-hover:mb-0 duration-300 opacity-80 group-hover:opacity-100 flex justify-between inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 lg:absolute lg:pt-24">
                       <div className="relative w-9/12">
                         <p className="truncate text-lg font-semibold text-black drop-shadow-xl dark:text-white sm:text-2xl">{nft.name}</p>
                       </div>
 
-                      {nft?.chain?.logo_URIs?.png && (
+                      {nft?.asset?.logo_URIs?.png && (
                         <div>
                           <div className="flex -space-x-4 overflow-hidden p-1">
                             <img
                               className="inline-block h-6 w-6 rounded-full ring-2 ring-transparent"
-                              src={nft.chain.logo_URIs.png}
+                              src={nft.asset.logo_URIs.png}
                               alt={nft.chain.pretty_name}
                             />
                           </div>

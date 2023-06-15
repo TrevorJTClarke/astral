@@ -12,11 +12,14 @@ import NftImage from './nft-image'
 import NftLoader from './nft-loader'
 import {
   ArrowSmallRightIcon,
+  ArrowPathIcon,
   CheckIcon,
   PaperAirplaneIcon,
   ChevronUpDownIcon,
   XMarkIcon,
   ChevronUpIcon,
+  ArrowsUpDownIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline'
 import {
   availableNetworks,
@@ -87,7 +90,8 @@ export default function TransferModal({
   setOpen,
   imageUrl,
 }: TransferModalTypes) {
-  const { query } = useRouter();
+  const router = useRouter()
+  const { query } = router
   const cancelButtonRef = useRef(null)
   const [srcNetwork, setSrcNetwork] = useState<Chain | undefined>()
   const [destNetwork, setDestNetwork] = useState<Chain | undefined>()
@@ -97,14 +101,27 @@ export default function TransferModal({
   const [currentSteps, setCurrentSteps] = useState(allSteps);
   const [currentIbcStep, setCurrentIbcStep] = useState(0);
   const [receiver, setReceiver] = useState('');
+  const [destNftClassId, setDestNftClassId] = useState<string | undefined>();
 
   // self-relay
   const [link, setLink] = useState<Link | undefined>();
-  const [nextRelay, setNextRelay] = useState<any>({});
-  const [relayStep, setRelayStep] = useState<number>(1);
   const [relayRunning, setRelayRunning] = useState<boolean>(false);
   const [relayerSteps, setRelayerSteps] = useState(allRelayerSteps);
   const [currentRelayerStep, setCurrentRelayerStep] = useState(0);
+
+  // router fun
+  const navigateToNft = async () => {
+    // TODO: Remove once below is finished, for now hackys
+    router.replace(`/my-nfts`)
+    // TODO:!
+    // try {
+    //   const destContract = `${}`
+    //   router.replace(`/my-nfts/${destContract}/${query.tokenId}`)
+    // } catch (e) {
+    //   // 
+    // }
+    // setOpen(false)
+  }
 
   // dynamic wallet/client connections
   const manager = useManager()
@@ -120,9 +137,10 @@ export default function TransferModal({
   }, [query.collection]);
 
   useEffect(() => {
-    if (!isOpen) setCurrentView(TransferView.Setup)
-    // TODO: Revert!
-    // if (!isOpen) setCurrentView(TransferView.RequiresRelayer)
+    if (!isOpen) {
+      setRelayRunning(false)
+      setCurrentView(TransferView.Setup)
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -154,49 +172,32 @@ export default function TransferModal({
     if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
   }, [destNetwork]);
 
-  // TODO: Change to listen/watch chains TXs
-  // TODO: UI for self-relay!!!
   const startTransfer = async () => {
     setCurrentView(TransferView.Sending)
     await submitTransfer()
-
-    setTimeout(() => {
-      setCurrentIbcStep(1)
-    }, 2000)
-    setTimeout(() => {
-      setCurrentIbcStep(2)
-    }, 4500)
-
-    setTimeout(() => {
-      // setCurrentView(TransferView.Complete)
-      // setCurrentIbcStep(1)
-      // setCurrentView(TransferView.Error)
-
-      setCurrentView(TransferView.RequiresRelayer)
-
-      setTimeout(() => {
-        setCurrentRelayerStep(1)
-      }, 2000)
-      setTimeout(() => {
-        setCurrentRelayerStep(2)
-      }, 4500)
-    }, 9000)
   }
 
-  // TODO: submitSend (same-chain NFT send)
+  // TODO: submitSend function (same-chain NFT send)
 
   const submitTransfer = async () => {
     const nftContractAddr = query.collection
-    if (!nftContractAddr) return;
+    if (!nftContractAddr) {
+      setCurrentView(TransferView.Error)
+      return;
+    }
     const srcChain = getChainForAddress(nftContractAddr)
     const repo = manager.getWalletRepo(srcChain?.chain_name)
     if (repo.isWalletDisconnected) await repo.connect(repo.wallets[0].walletName, true)
-    // TODO: handle error here
-    if (!repo.current?.address) return;
+    if (!repo.current?.address) {
+      setCurrentView(TransferView.Error)
+      return;
+    }
     const wallet = repo.getWallet(repo.wallets[0].walletName)
     const senderAddr = repo.current?.address
-    // TODO: handle error here
-    if (!senderAddr || !wallet) return;
+    if (!senderAddr || !wallet) {
+      setCurrentView(TransferView.Error)
+      return;
+    }
     const signerClient = await wallet.getSigningCosmWasmClient();
 
     let contractPort: string | undefined;
@@ -216,81 +217,83 @@ export default function TransferModal({
       receiver,
     })
 
-    const fee: StdFee = {
-      amount: [
-        {
-          denom: 'ustars',
-          amount: '2500',
-        },
-      ],
-      gas: new BigNumber('1450000').toString(),
-    };
-
-    // get signer!
-    console.log('signingCosmWasmClient', signerClient, senderAddr, fee)
     try {
       const res = await signerClient.execute(
         senderAddr,
         nftContractAddr,
         sendMsg,
-        // fee,
         'auto',
       );
       console.log('signerClient res', res)
+      if (res?.transactionHash) {
+        setCurrentIbcStep(1)
+
+        // TODO: Change to wait 10-30s for receive confirm (check receiver is owner)
+        // Check packet status for a few seconds before attempting Self-relay
+        setTimeout(() => {
+          setCurrentView(TransferView.RequiresRelayer)
+        }, 2000)
+      }
     } catch (e) {
-      // TODO: display error UI
-      console.error('signingCosmWasmClient e', e);
+      // display error UI
+      console.error('signingCosmWasmClient e', e)
+      setCurrentView(TransferView.Error)
     }
   }
 
   // self-relayer logic ---------
-  const next = () => setNextRelay(nextRelay + 1)
-  const prev = () => setNextRelay(nextRelay > 0 ? nextRelay - 1 : 0)
-
-  const runRelayer = () => {
-    setRelayRunning(true)
-    relayerLoop()
-    next()
-  }
-
-  const stopRelayer = () => {
-    setRelayRunning(false)
-    prev()
-  }
-
-  async function relayerLoop(
-    options = { poll: 5000, maxAgeDest: 86400, maxAgeSrc: 86400 }
-  ) {
+  async function relayerLoop() {
     if (!link) return;
-    console.log('link', link)
     try {
       // Relay ONCE
-      if (link?.relayAll) await link.relayAll()
+      if (link?.relayAll) {
+        // await link.relayAll()
+        link.relayAll().then(() => {
+          setCurrentView(TransferView.Complete)
+          setCurrentIbcStep(1)
+        })
+      }
     } catch (e) {
       console.error(`Caught error: `, e);
+      setCurrentView(TransferView.Error)
     }
-    // while (relayRunning) {
-    //   try {
-    //     if (link?.relayAll) await link.relayAll()
-    //     // const nextRelayInst = await link.checkAndRelayPacketsAndAcks(
-    //     //   nextRelay,
-    //     //   2,
-    //     //   6
-    //     // );
-    //     // setNextRelay(nextRelayInst)
-    //     // console.log(nextRelayInst)
-    //     // await link.updateClientIfStale("A", options.maxAgeDest)
-    //     // await link.updateClientIfStale("B", options.maxAgeSrc)
-    //   } catch (e) {
-    //     console.error(`Caught error: `, e);
-    //   }
-    //   await sleep(options.poll)
-    // }
   }
 
-  // TODO: setup button for this
+  async function relayerCheckLoop(poll = 4000) {
+    if (!link) return;
+    while (relayRunning) {
+      try {
+        const pendingPktsA = await link.getPendingPackets('A')
+        console.log('pendingPktsA', pendingPktsA)
+        if (pendingPktsA.length > 0) return setCurrentRelayerStep(1)
+        const pendingAcksB = await link.getPendingAcks('B')
+        console.log('pendingAcksB', pendingAcksB)
+        if (pendingPktsA.length > 0) return setCurrentRelayerStep(2)
+
+        // TODO: check destination owner is receiver, setCurrentRelayerStep(3)
+        // TODO: check source owner is signer -- which reverted, setCurrentRelayerStep(4)
+
+        // TODO: Remove! This is hacky check for success!
+        if (currentRelayerStep > 0 && !pendingPktsA.length && !pendingAcksB.length) {
+          setCurrentRelayerStep(3)
+          setRelayRunning(false)
+          setTimeout(() => {
+            setCurrentView(TransferView.Complete)
+            setCurrentIbcStep(1)
+          }, 2000)
+          break;
+        }
+
+      } catch (e) {
+        console.error(`Caught error: `, e);
+      }
+      await sleep(poll)
+    }
+  }
+
   const startSelfRelay = async () => {
     try {
+      setCurrentRelayerStep(1)
       const repoA = manager.getWalletRepo(srcNetwork?.chain_name)
       if (repoA.isWalletDisconnected) await repoA.connect(repoA.wallets[0].walletName, true)
       const aSignerWallet = await repoA.getWallet(repoA.wallets[0].walletName)
@@ -322,22 +325,27 @@ export default function TransferModal({
       )
 
       setLink(linkInst)
+      setRelayRunning(true)
     } catch (e) {
       console.error(e)
+      setLink(undefined)
+      setRelayRunning(false)
+      setCurrentView(TransferView.Error)
     }
   }
 
   useEffect(() => {
-    if (link) runRelayer()
+    if (link) relayerLoop()
   }, [link])
-
-  // TODO: TX listener loop
+  useEffect(() => {
+    if (link && relayRunning === true) relayerCheckLoop()
+  }, [relayRunning])
 
   useEffect(() => {
     const as = allRelayerSteps.map((s, idx) => {
-      if (currentRelayerStep > idx) s.status = 'complete'
-      if (currentRelayerStep === idx) s.status = 'current'
-      if (currentRelayerStep < idx) s.status = 'upcoming'
+      if (currentRelayerStep > idx + 1) s.status = 'complete'
+      if (currentRelayerStep === idx + 1) s.status = 'current'
+      if (currentRelayerStep < idx + 1) s.status = 'upcoming'
       return s
     })
     setRelayerSteps(as)
@@ -693,26 +701,18 @@ export default function TransferModal({
                         </div>
                       </Dialog.Title>
 
-                      {/* <button
-                          type="button"
-                          className="absolute top-0 right-0 bg-transparent opacity-70 hover:opacity-100 hover:bg-gray-800 px-4 py-3 rounded-xl"
-                          onClick={() => setOpen(false)}
-                          ref={cancelButtonRef}
-                        >
-                          <XMarkIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
-                        </button> */}
-
-                      <div className="relative mx-auto h-[250px] mt-8 text-center text-white">
-                        <NftImage className="h-[250px] w-[250px]" uri={imageUrl} />
+                      <div className="relative mx-auto min-h-[250px] min-w-[250px] mt-8 text-center text-white">
+                        <NftImage className="min-h-[250px] min-w-[250px]" uri={imageUrl} />
                       </div>
 
                       <div className="mt-12 sm:mt-6 md:mt-12 flex justify-center">
                         <button
                           type="button"
                           className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
-                          onClick={() => setOpen(false)}
+                          onClick={navigateToNft}
                         >
-                          Close
+                          <span>Go To NFT</span>
+                          <ArrowRightIcon className="ml-2 h-5 w-5 text-white" aria-hidden="true" />
                         </button>
                       </div>
 
@@ -743,7 +743,7 @@ export default function TransferModal({
                       </button>
 
                       <div className="flex justify-start gap-16 relative mx-auto mt-8">
-                        <NftImage className="h-[250px] w-[250px]" uri={imageUrl} />
+                        <NftImage className="min-h-[250px] min-w-[250px]" uri={imageUrl} />
 
                         <div className="my-auto">
                           <nav aria-label="Progress">
@@ -859,7 +859,7 @@ export default function TransferModal({
                       </button>
 
                       <div className="flex justify-start gap-16 relative mx-auto mt-8">
-                        <NftImage className="h-[250px] w-[250px]" uri={imageUrl} />
+                        <NftImage className="min-h-[250px] min-w-[250px]" uri={imageUrl} />
 
                         <div className="my-auto">
                           <nav aria-label="Progress">
@@ -876,9 +876,9 @@ export default function TransferModal({
                                         <span className="flex h-9 items-center">
                                           <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-pink-600">
                                             {step.status === 'complete' ? (
-                                              <CheckIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                                              <CheckIcon className="h-5 w-5 text-gray-900" aria-hidden="true" />
                                             ) : (
-                                              <XMarkIcon className="h-5 w-5 text-white" aria-hidden="true" />
+                                              <XMarkIcon className="h-5 w-5 text-gray-900" aria-hidden="true" />
                                             )}
                                           </span>
                                         </span>
@@ -896,7 +896,9 @@ export default function TransferModal({
                                       <a href={step.href} className="group relative flex items-start" aria-current="step">
                                         <span className="flex h-9 items-center" aria-hidden="true">
                                           <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-pink-600 bg-black">
-                                            <span className="h-2.5 w-2.5 rounded-full bg-pink-600" />
+                                            {step.status === 'current' && (
+                                              <ArrowPathIcon className="animate-spin h-5 w-5 text-pink-600" aria-hidden="true" />
+                                            )}
                                           </span>
                                         </span>
                                         <span className="ml-4 flex min-w-0 flex-col">
@@ -913,7 +915,9 @@ export default function TransferModal({
                                       <a href={step.href} className="group relative flex items-start">
                                         <span className="flex h-9 items-center" aria-hidden="true">
                                           <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-600 bg-black">
-                                            {/* <span className="h-2.5 w-2.5 rounded-full bg-transparent group-hover:bg-gray-600" /> */}
+                                            {stepIdx === currentRelayerStep && (
+                                              <span className="h-2.5 w-2.5 rounded-full bg-transparent group-hover:bg-gray-600" />
+                                            )}
                                           </span>
                                         </span>
                                         <span className="ml-4 flex min-w-0 flex-col">
@@ -935,14 +939,26 @@ export default function TransferModal({
                           type="button"
                           className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
                           onClick={startSelfRelay}
+                          disabled={currentRelayerStep !== 0}
                         >
-                          Start Relay
+                          {currentRelayerStep !== 0 ? (
+                            <>
+                              <span>Relaying</span>
+                              <ArrowPathIcon className="animate-spin ml-2 h-5 w-5 text-white" aria-hidden="true" />
+                            </>
+                          ) : (
+                            <>
+                              <span>Start Relay</span>
+                              <ArrowsUpDownIcon className="ml-2 h-5 w-5 text-white" aria-hidden="true" />
+                            </>
+                          )}
                         </button>
                         <button
                           type="button"
                           className="mt-3 inline-flex w-full justify-center rounded-md bg-transparent opacity-70 hover:opacity-95 px-8 py-4 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-gray-300 sm:col-start-1 sm:mt-0"
                           onClick={() => setOpen(false)}
                           ref={cancelButtonRef}
+                          disabled={currentRelayerStep !== 0}
                         >
                           Cancel
                         </button>

@@ -29,8 +29,8 @@ const defaultGasForChain = (chain: Chain) => {
   let gasPrice: any = `0.04${chain.bech32_prefix}`
   if (chain?.fees && chain?.fees.fee_tokens) {
     const fee = chain?.fees.fee_tokens[0]
-    const feeDenom = `${fee.denom}`.search('ibc/') === -1 ? `u${fee.denom.replace('u', '')}` : fee.denom
-    const feeUnit = `${fee.average_gas_price || fee.low_gas_price || fee.fixed_min_gas_price || 0}${feeDenom}`
+    const feeDenom = `${fee.denom}`.search('ibc/') === -1 ? `${fee.denom}` : fee.denom
+    const feeUnit = `${fee.high_gas_price || fee.average_gas_price || fee.low_gas_price || fee.fixed_min_gas_price || 0}${feeDenom}`
     try {
       gasPrice = GasPrice.fromString(feeUnit)
     } catch (e) {
