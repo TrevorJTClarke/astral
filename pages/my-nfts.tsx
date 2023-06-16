@@ -277,11 +277,11 @@ export default function MyNfts() {
 
       {(!isLoading && isAuthed && !hasData) && (<div className="flex flex-col my-24 mx-auto text-center text-white">
         <h2 className="text-xl mb-4">No NFTs Found!</h2>
-        <p className="text-md text-gray-500 mt-4">Looks like you don't have any NFTs yet, go get some on:</p>
+        <p className="text-md text-gray-500 mt-4">Looks like you don&apos;t have any NFTs yet, go get some on:</p>
         <div className="flex max-w-1/2 mx-auto">
           <div className="grid grid-cols-3 gap-4">
             {marketInfo.map((m, idx) => (
-              <a key={idx} href={m.marketLink} target="_blank" className="inline-flex mt-8 mb-4 items-center justify-center px-8 py-4 text-base font-medium rounded-lg text-white border-2 border-pink-600 hover:border-pink-600/80">
+              <a key={idx} href={m.marketLink} target="_blank" rel="noreferrer" className="inline-flex mt-8 mb-4 items-center justify-center px-8 py-4 text-base font-medium rounded-lg text-white border-2 border-pink-600 hover:border-pink-600/80">
                 <img src={m.logoPath} alt={m.name} className="w-[200px]" width="100%" />
               </a>
             ))}

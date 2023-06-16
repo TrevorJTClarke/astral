@@ -1,3 +1,4 @@
+import { AssetList, Asset, Chain } from '@chain-registry/types';
 import {
   networkType,
   getChainAssets,
@@ -11,9 +12,21 @@ export interface NFTChannel {
 }
 
 export interface NFTConnection {
-  channel_a: NFTChannel
-  channel_b: NFTChannel
+	[key: string]: NFTChannel
 }
+
+export interface NFTChannelChain extends NFTChannel {
+	chain?: Chain
+	asset?: Asset
+}
+
+export interface NFTConnectionChain extends NFTConnection {
+	[key: string]: NFTChannelChain
+}
+
+// export interface NFTConnections {
+// 	[key string]: NFTConnection[]
+// }
 
 export const mainnetConnections: NFTConnection[] = [
   // {
@@ -105,19 +118,9 @@ export const testnetConnections: NFTConnection[] = [
 	// },
 ]
 
-export const connections: { testnet: NFTConnection[], mainnet: NFTConnection[] } = {
+export const connections: NFTConnections = {
   testnet: testnetConnections,
   mainnet: mainnetConnections,
-}
-
-export interface NFTChannelChain extends NFTChannel {
-  chain?: Chain
-  asset?: Asset
-}
-
-export interface NFTConnectionChain extends NFTConnection {
-  channel_a: NFTChannelChain
-  channel_b: NFTChannelChain
 }
 
 export const connectionChannels = connections[`${networkType}`]
@@ -130,7 +133,7 @@ connectionChannels.forEach((channels: NFTChannel) => {
   Object.keys(channels).forEach((cid: string) => {
     const chain_id = channels[cid].chain_id
     const network = getChainByChainId(chain_id)
-    let asset: Asset | undefined;
+    let asset: Asset | null;
     if (network) {
       const assetList = getChainAssets(network)
       asset = assetList?.assets ? assetList.assets[0] : null

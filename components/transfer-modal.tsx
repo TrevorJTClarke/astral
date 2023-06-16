@@ -26,6 +26,7 @@ import {
   isAvailableNetwork,
   extendedChannels,
   NFTChannel,
+  NFTChannelChain,
   isBridgeAddress,
   getContractFromPort,
 } from '../contexts/connections'
@@ -128,8 +129,8 @@ export default function TransferModal({
 
   useEffect(() => {
     if (!srcNetwork && query.collection) {
-      const srcChain = getChainForAddress(query.collection)
-      if (isAvailableNetwork(srcChain?.chain_id)) {
+      const srcChain = getChainForAddress(`${query.collection}`)
+      if (srcChain?.chain_id && isAvailableNetwork(srcChain.chain_id)) {
         setSrcNetwork(srcChain)
         if (!destNetwork) setDestNetwork(srcChain)
       }
@@ -162,7 +163,7 @@ export default function TransferModal({
     // TODO: Filter to src + dest channels
     // TODO: dynamically get channels from RPC
     extendedChannels.forEach(channels => {
-      Object.keys(channels).forEach(k => {
+      Object.keys(channels).forEach((k: string) => {
         if (chain_id === channels[k].chain_id) foundChannels.push(channels[k])
       })
     })
@@ -185,7 +186,11 @@ export default function TransferModal({
       setCurrentView(TransferView.Error)
       return;
     }
-    const srcChain = getChainForAddress(nftContractAddr)
+    const srcChain = getChainForAddress(`${nftContractAddr}`)
+    if (!srcChain?.chain_name) {
+      setCurrentView(TransferView.Error)
+      return;
+    }
     const repo = manager.getWalletRepo(srcChain?.chain_name)
     if (repo.isWalletDisconnected) await repo.connect(repo.wallets[0].walletName, true)
     if (!repo.current?.address) {
@@ -204,10 +209,16 @@ export default function TransferModal({
     if (selectedChannel?.port && `${selectedChannel.port}`.search('wasm') > -1) {
       contractPort = `${selectedChannel.port}`.split('.')[1]
     }
-    // TODO: handle error here
-    if (!receiver || !selectedChannel?.channel) return;
+    if (!receiver || !selectedChannel?.channel) {
+      setCurrentView(TransferView.Error)
+      return;
+    }
 
     const destChain = getChainForAddress(receiver)
+    if (!destChain?.chain_name) {
+      setCurrentView(TransferView.Error)
+      return;
+    }
     const destRepo = manager.getWalletRepo(destChain?.chain_name)
     const destClient = await destRepo.getCosmWasmClient();
     const sendMsg = await getMsgSendIcsNft(destClient, {
@@ -220,7 +231,7 @@ export default function TransferModal({
     try {
       const res = await signerClient.execute(
         senderAddr,
-        nftContractAddr,
+        `${nftContractAddr}`,
         sendMsg,
         'auto',
       );
@@ -294,11 +305,20 @@ export default function TransferModal({
   const startSelfRelay = async () => {
     try {
       setCurrentRelayerStep(1)
+      if (!srcNetwork?.chain_name) {
+        setCurrentView(TransferView.Error)
+        return;
+      }
       const repoA = manager.getWalletRepo(srcNetwork?.chain_name)
       if (repoA.isWalletDisconnected) await repoA.connect(repoA.wallets[0].walletName, true)
       const aSignerWallet = await repoA.getWallet(repoA.wallets[0].walletName)
+      if (!aSignerWallet) {
+        setCurrentView(TransferView.Error)
+        return;
+      }
       const aSigner = await aSignerWallet.getSigningCosmWasmClient()
       const aSignerClient: CosmWasmSigner = {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         sign: aSigner,
         senderAddress: repoA.current?.address || '',
       }

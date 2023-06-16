@@ -16,15 +16,15 @@ export default function AliasAddress({ children: address, len }: { children: str
   const [resolvedName, setResolvedName] = useState<string | undefined>();
 
   const resolve = async () => {
-    const nsName = `${address}`.search('stars') > -1 ? 'stargaze' : 'icns'
-    const ns = useNameService(nsName)
-    const res = await ns.data?.resolveName(address)
-    console.log('resolveName res', res)
     // TODO: finish
+    // const nsName = `${address}`.search('stars') > -1 ? 'stargaze' : 'icns'
+    // const ns = useNameService(nsName)
+    // const res = await ns.data?.resolveName(address)
+    // console.log('resolveName res', res)
     // setResolvedName()
   }
 
-  useCallback(resolve, [address])
+  // useCallback(resolve, [address])
 
   if (!address) return (
     <span className="rounded-sm bg-gray-700 opacity-20 w-10 h-5 animate-pulse"></span>

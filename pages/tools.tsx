@@ -79,6 +79,10 @@ export default function Bridge() {
 
   // dynamic wallet/client connections
   const manager = useManager()
+  const chainA = useChain(sgtn);
+  console.log('chainA', chainA);
+  const chainB = useChain(jntn);
+  console.log('chainB', chainB);
 
   // TODO: Change to dynamic!!
   const aContractAddress = bridgeRegistry.stargaze.bridge
@@ -88,10 +92,6 @@ export default function Bridge() {
     if (init) return;
     init = true
     try {
-      const chainA = useChain(sgtn);
-      console.log('chainA', chainA);
-      const chainB = useChain(jntn);
-      console.log('chainB', chainB);
       const repoA = manager.getWalletRepo(sgtn)
       // if (repoA.isWalletDisconnected) await repoA.connect('stargazetestnet')
       // if (repoB.isWalletDisconnected) await repoB.connect('keplr-extension')
@@ -148,10 +148,6 @@ export default function Bridge() {
     if (init) return;
     init = true
     try {
-      const chainA = useChain(sgtn);
-      console.log('chainA', chainA);
-      const chainB = useChain(jntn);
-      console.log('chainB', chainB);
       const repoA = manager.getWalletRepo(sgtn)
       // if (repoA.isWalletDisconnected) await repoA.connect(repo.wallets[0].walletName, true)
       // if (repoB.isWalletDisconnected) await repoB.connect(repo.wallets[0].walletName, true)
