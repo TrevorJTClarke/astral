@@ -12,6 +12,14 @@ export const Footer = () => {
         >
           Ravi
         </a>
+        &
+        <a
+          href="https://github.com/trevorjtclarke"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          TJTC
+        </a>
       </span>
     </footer>
   );
