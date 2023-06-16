@@ -69,7 +69,6 @@ export default function MyNfts() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [hasData, setHasData] = useState(false);
   const [selectedChains, setSelectedChains] = useState<ChainSelectable[]>([]);
-  const [nftContractCache, setNftContractCache] = useState<any>({});
   const [nfts, setNfts] = useState<any[]>([]);
   const [ownerAddresses, setOwnerAddresses] = useState<QueryChainAddresses>({});
   const [getOwnedTokens, ownedTokensQuery] = useLazyQuery<OwnedTokens>(OWNEDTOKENS);
@@ -183,7 +182,10 @@ export default function MyNfts() {
   useEffect(() => {
     // Need to check at least 1 chain is authed
     setIsAuthed(typeof address !== 'undefined')
-    if (!address) return;
+    if (!address) {
+      setIsLoading(false)
+      return;
+    }
     (async () => {
       setIsLoadingProviders(true)
       for await (const chain of selectedChains) {

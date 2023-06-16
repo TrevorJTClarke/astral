@@ -18,7 +18,7 @@ export default function NftImage({ uri, alt, className }: NftImage) {
             <div className="md:aspect-h-1 md:aspect-w-1">
               <img
                 src={imageSource}
-                height="100%" width="100%" alt={alt || ''} className="object-contain transition-all" />
+                height="100%" width="100%" alt={alt || ''} className="object-cover transition-all" />
             </div>
           </div>
         </div>
