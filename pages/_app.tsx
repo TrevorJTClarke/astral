@@ -70,8 +70,8 @@ function AstralApp({ Component, pageProps }: AppProps) {
     >
       <ThemeProvider>
         <Head>
-          <title>Astral - NFT Bridge</title>
-          <meta name="description" content="Easily bridge cosmos NFTs with ICS721" />
+          <title>Astral :: Interchain NFTs</title>
+          <meta name="description" content="Your bridge in the vast expanse of the blockchain universe. Use Astral for smooth transfers, transparent provenance and powerful NFT tools in the next chapter of the NFT revolution." />
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <ApolloProvider client={client}>
