@@ -93,9 +93,6 @@ export default function MyNfts() {
     console.log('getOwnedNFTs ownerAddresses', ownerAddresses)
     if (ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']) {
       const ownerAddrs = ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']
-      // TODO: finish this!
-      // if (ownedTokensQuery.data) getExternalNfts()
-      // else 
       ownerAddrs.forEach(owner => {
         getOwnedTokens({
           variables: {
@@ -150,6 +147,10 @@ export default function MyNfts() {
     setIsLoading(false);
   };
 
+  const filterNftsBySelectedChains = (nft: any) => {
+    return selectedChains.filter(c => c.selected).map(c => c.chain_id).includes(nft.chain.chain_id)
+  }
+
   const applyDedupeNfts = (newNfts: any[]) => {
     setNfts((prevNfts: any[]) => {
       const dedupedNfts: any[] = prevNfts
@@ -197,13 +198,12 @@ export default function MyNfts() {
           clients[chain.chain_id] = await repo.getCosmWasmClient()
         }
       }
-      setNfts([])
       setOwnerAddresses(ownerAddresses)
       setIsLoadingProviders(false)
     })();
  
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChains, address]);
+  }, [address]);
 
   if (!selectedChains.length) setSelectedChains(defaultSelectedNetworks())
 
@@ -292,7 +292,7 @@ export default function MyNfts() {
       {(!isLoading && isAuthed && hasData) && (
         <div className="relative px-4 pt-4 sm:mx-8 sm:pt-8 md:px-0">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-8 xl:grid-cols-4">
-            {nfts.map((nft, idx) => (
+            {nfts.filter(filterNftsBySelectedChains).map((nft, idx) => (
               <div key={idx} className="group cursor-pointer relative h-full overflow-hidden bg-white transition-shadow divide-y rounded-lg shadow-sm divide-neutral-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black group/card border border-zinc-800 focus-within:ring-2 focus-within:ring-pink-500 focus-within:ring-offset-2">
                 <Link className="z-[2] focus:outline-none" href={`${nft.href}`}>
                   <div className="relative bg-neutral-50 dark:bg-black">
