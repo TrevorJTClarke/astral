@@ -310,7 +310,9 @@ export default function TransferModal({
         return;
       }
       const repoA = manager.getWalletRepo(srcNetwork?.chain_name)
-      if (repoA.isWalletDisconnected) await repoA.connect(repoA.wallets[0].walletName, true)
+      console.log('repoA', srcNetwork?.chain_name, repoA)
+      // if (repoA.isWalletDisconnected) await repoA.connect(repoA.wallets[0].walletName, true)
+      await repoA.connect(repoA.wallets[0].walletName, true)
       const aSignerWallet = await repoA.getWallet(repoA.wallets[0].walletName)
       if (!aSignerWallet) {
         setCurrentView(TransferView.Error)
@@ -322,17 +324,23 @@ export default function TransferModal({
         sign: aSigner,
         senderAddress: repoA.current?.address || '',
       }
+      console.log('getOfflineSigner', srcNetwork?.chain_id)
       const aOfflineClient: OfflineSigner = aSignerWallet.offlineSigner.keplr.getOfflineSigner(srcNetwork?.chain_id, 'direct')
+      console.log('aOfflineClient', aOfflineClient)
 
       const repoB = manager.getWalletRepo(destNetwork?.chain_name)
-      if (repoB.isWalletDisconnected) await repoB.connect(repoB.wallets[0].walletName, true)
+      console.log('repoB', destNetwork?.chain_name, repoB)
+      // if (repoB.isWalletDisconnected) await repoB.connect(repoB.wallets[0].walletName, true)
+      await repoB.connect(repoB.wallets[0].walletName, true)
       const bSignerWallet = await repoB.getWallet(repoB.wallets[0].walletName, true)
       const bSigner = await bSignerWallet.getSigningCosmWasmClient()
       const bSignerClient: CosmWasmSigner = {
         sign: bSigner,
         senderAddress: repoB.current?.address || '',
       }
+      console.log('getOfflineSigner', destNetwork?.chain_id)
       const bOfflineClient: OfflineSigner = bSignerWallet.offlineSigner.keplr.getOfflineSigner(destNetwork?.chain_id, 'direct')
+      console.log('aOfflineClient', aOfflineClient)
 
       // Get link, before relayer loop
       const linkInst = await getLinkForChannel(
@@ -343,6 +351,7 @@ export default function TransferModal({
         selectedChannel?.port,
         selectedChannel?.channel,
       )
+      console.log('linkInst', linkInst)
 
       setLink(linkInst)
       setRelayRunning(true)
