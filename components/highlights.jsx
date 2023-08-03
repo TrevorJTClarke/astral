@@ -4,8 +4,8 @@ import NftImage from './nft-image'
 
 const reviews = [
   {
-    url: '/nfts/1.png',
-    chain_name: 'stargaze',
+    url: '/nfts/1.webp',
+    chain_name: 'juno',
   },
   {
     url: '/nfts/2.jpg',
@@ -20,7 +20,7 @@ const reviews = [
     chain_name: 'stargaze',
   },
   {
-    url: '/nfts/5.jpeg',
+    url: '/nfts/5.webp',
     chain_name: 'stargaze',
   },
   {
@@ -94,6 +94,14 @@ const reviews = [
   {
     url: '/nfts/23.png',
     chain_name: 'stargaze',
+  },
+  {
+    url: '/nfts/24.webp',
+    chain_name: 'juno',
+  },
+  {
+    url: '/nfts/25.webp',
+    chain_name: 'juno',
   },
 ]
 
