@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTheme } from '../contexts/theme';
-import { WalletSection, NavProps, ActiveLink } from '../components';
+import { NavProps, ActiveLink } from '../components';
+import { ProfileWallet } from '../components/profile-wallet';
 import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 
 export const navItems: NavProps[] = [
@@ -46,7 +47,7 @@ export const Header = () => {
         </nav>
       </div>
 
-      <WalletSection />
+      <ProfileWallet />
       {/* <button
         className="inline-flex items-center justify-center w-12 h-12 text-black border rounded-lg dark:text-white hover:bg-black/10 dark:hover:bg-white/10 border-black/10 dark:border-white/10"
         onClick={toggleTheme}

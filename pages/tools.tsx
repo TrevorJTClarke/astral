@@ -238,7 +238,7 @@ export default function Bridge() {
   if (typeof window !== 'undefined') relayIbcNftTxns()
 
   return (
-    <div>
+    <div className="min-h-window">
       <div className="text-center pt-16">
         <h1 className="mb-6 text-center text-3xl font-semibold xl:text-5xl">
           Bridge: Create IBC connection channels

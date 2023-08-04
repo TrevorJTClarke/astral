@@ -58,11 +58,11 @@ export const Connected = ({
   address?: string;
 }) => {
   return (
-    <div className="mt-3 text-center sm:mt-1.5 sm:text-left">
-      <div className="flex flex-row items-center justify-between pl-3">
+    <div className="flex flex-col w-full h-full text-center">
+      <div className="flex flex-row items-center justify-between">
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-black dark:hover:bg-white/10"
+          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
           onClick={onReturn}
         >
           <span className="sr-only">Return</span>
@@ -76,28 +76,29 @@ export const Connected = ({
         </Dialog.Title>
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-black dark:hover:bg-white/10"
+          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
           onClick={onClose}
         >
           <span className="sr-only">Close</span>
           <XMarkIcon className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
-      <div className="flex flex-col justify-between w-full h-full px-2 pt-4 pb-2 mt-4">
-        {/* <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-purple-500 to-blue-500"></div> */}
-        <div className="flex flex-row items-center mx-auto space-x-2">
-          <img
-            src={logo}
-            alt={name}
-            className="flex-shrink-0 w-4 h-4 mt-1 aspect-1"
-          />
-          <p className="mt-3 mb-2 text-lg font-medium text-black dark:text-white">
-            {username || ''}
-          </p>
+      <div className="flex flex-col justify-between h-full mt-12">
+        <div className="flex flex-col justify-center my-auto">
+          <div className="flex flex-row items-center mx-auto space-x-2">
+            <img
+              src={logo}
+              alt={name}
+              className="flex-shrink-0 w-4 h-4 mt-0 aspect-1"
+            />
+            <p className="mt-0 mb-0 text-lg font-medium text-black dark:text-white">
+              {username || ''}
+            </p>
+          </div>
+          <Address>{address || ''}</Address>
         </div>
-        <Address>{address || ''}</Address>
         <button
-          className="rounded-lg bg-pink-600 hover:bg-pink-600/80 inline-flex justify-center items-center py-2.5 font-medium text-white"
+          className="rounded-lg mt-12 bg-slate-600 hover:bg-slate-600/80 inline-flex justify-center items-center py-2.5 font-medium text-white"
           onClick={() => {
             disconnect();
             onClose();

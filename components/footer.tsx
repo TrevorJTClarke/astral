@@ -3,23 +3,19 @@ import React from 'react';
 export const Footer = () => {
   return (
     <footer className="flex justify-center py-6 text-sm text-center">
-      <span className="flex flex-row items-center space-x-2">
-        <p>Built with ☕️ -</p>
+      <span className="flex flex-row items-center gap-2">
+        <p>Built with ☕️ by </p>
         <a
           href="https://github.com/ravichain"
           target="_blank"
           rel="noopener noreferrer"
-        >
-          Ravi
-        </a>
+        >Ravi</a>
         &
         <a
           href="https://github.com/trevorjtclarke"
           target="_blank"
           rel="noopener noreferrer"
-        >
-          TJTC
-        </a>
+        >TJTC</a>
       </span>
     </footer>
   );

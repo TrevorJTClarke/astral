@@ -210,7 +210,7 @@ export default function MyNfts() {
   if (!selectedChains.length) setSelectedChains(defaultSelectedNetworks())
 
   return (
-    <div className="mt-12 mb-24">
+    <div className="min-h-window pt-12 pb-24">
       <div className="flex justify-between px-8">
         <h1 className="text-center text-3xl font-semibold xl:text-5xl">
           My NFTs

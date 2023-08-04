@@ -4,6 +4,12 @@ import Head from 'next/head';
 import type { AppProps } from 'next/app';
 import { Header, Footer } from '../components';
 import { defaultTheme, ChainProvider } from '@cosmos-kit/react';
+import { RainbowKitProvider, darkTheme, lightTheme, getDefaultWallets } from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
+import { configureChains, createConfig, WagmiConfig } from 'wagmi';
+import { mainnet } from 'wagmi/chains';
+import { infuraProvider } from 'wagmi/providers/infura';
+import { publicProvider } from 'wagmi/providers/public';
 import { wallets as keplrWallets } from '@cosmos-kit/keplr';
 import { wallets as cosmostationWallets } from '@cosmos-kit/cosmostation';
 import { wallets as leapWallets } from '@cosmos-kit/leap';
@@ -41,6 +47,27 @@ const defaultGasForChain = (chain: Chain) => {
   return { gasPrice };
 }
 
+// const { chains, publicClient } = configureChains(
+const evmConfigs = configureChains(
+  [mainnet],
+  [
+    infuraProvider({ apiKey: process.env.NEXT_PUBLIC_API_KEY_INFURA || '' }),
+    publicProvider()
+  ]
+);
+
+const { connectors } = getDefaultWallets({
+  appName: 'Astral',
+  projectId: process.env.NEXT_PUBLIC_API_KEY_WALLETCONNECT || '',
+  chains: evmConfigs.chains,
+});
+
+const wagmiConfig = createConfig({
+  autoConnect: true,
+  connectors,
+  publicClient: evmConfigs.publicClient,
+})
+
 function AstralApp({ Component, pageProps }: AppProps) {
   const signerOptions: SignerOptions = {
     signingStargate: defaultGasForChain,
@@ -54,7 +81,7 @@ function AstralApp({ Component, pageProps }: AppProps) {
       wallets={[...keplrWallets, ...cosmostationWallets, ...leapWallets]}
       walletConnectOptions={{
         signClient: {
-          projectId: 'a8510432ebb71e6948cfd6cde54b70f7',
+          projectId: process.env.NEXT_PUBLIC_API_KEY_WALLETCONNECT || 'a8510432ebb71e6948cfd6cde54b70f7',
           relayUrl: 'wss://relay.walletconnect.org',
           metadata: {
             name: 'Astral',
@@ -68,20 +95,29 @@ function AstralApp({ Component, pageProps }: AppProps) {
       signerOptions={signerOptions}
       walletModal={TailwindModal}
     >
-      <ThemeProvider>
-        <Head>
-          <title>Astral :: Interchain NFTs</title>
-          <meta name="description" content="Your bridge in the vast expanse of the blockchain universe. Use Astral for smooth transfers, transparent provenance and powerful NFT tools in the next chapter of the NFT revolution." />
-          <link rel="icon" href="/favicon.ico" />
-        </Head>
-        <ApolloProvider client={client}>
-          <div className="min-h-screen text-black bg-white dark:bg-black dark:text-white">
-            <Header />
-            <Component {...pageProps} />
-            <Footer />
-          </div>
-        </ApolloProvider>
-      </ThemeProvider>
+      <WagmiConfig config={wagmiConfig}>
+        <RainbowKitProvider chains={evmConfigs.chains} theme={darkTheme({
+          accentColor: '#db2777',
+          accentColorForeground: 'white',
+          borderRadius: 'medium',
+          overlayBlur: 'small',
+        })}>
+          <ThemeProvider>
+            <Head>
+              <title>Astral :: Interchain NFTs</title>
+              <meta name="description" content="Your bridge in the vast expanse of the blockchain universe. Use Astral for smooth transfers, transparent provenance and powerful NFT tools in the next chapter of the NFT revolution." />
+              <link rel="icon" href="/favicon.ico" />
+            </Head>
+            <ApolloProvider client={client}>
+              <div className="min-h-screen text-black bg-white dark:bg-black dark:text-white">
+                <Header />
+                <Component {...pageProps} />
+                <Footer />
+              </div>
+            </ApolloProvider>
+          </ThemeProvider>
+        </RainbowKitProvider>
+      </WagmiConfig>
     </ChainProvider>
   );
 }

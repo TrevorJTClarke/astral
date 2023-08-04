@@ -6,6 +6,10 @@
 @import "Loader.module.css";
 @import "404.module.css";
 
+.min-h-window {
+  min-height: calc(100vh - 164px);
+}
+
 #stars {
   width: 1px;
   height: 1px;
