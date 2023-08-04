@@ -111,9 +111,9 @@ export const ProfileWallet = () => {
     <div className="">
       {Object.keys(wallets).length > 0 && (
         <Link href="/manage">
-          <div className="min-w-[160px] py-1 border-black/10 hover:border-black/50 dark:border-zinc-800 hover:dark:border-zinc-700 flex cursor-pointer flex-row items-center justify-between border lg:rounded-lg">
+          <div className="group transition-all min-w-[160px] py-1 border-black/10 hover:border-black/50 dark:border-zinc-800 hover:dark:border-zinc-700 flex cursor-pointer flex-row items-center justify-between border lg:rounded-lg">
             <div className="flex px-4 py-2">
-              <div className="isolate flex -space-x-[2px] overflow-hidden my-auto mr-2">
+              <div className="isolate flex transition-all -space-x-[2px] group-hover:space-x-1 overflow-hidden my-auto mr-2">
                 {walletLogos}
               </div>
               <p className="text-xs leading-6 my-auto">Active Wallet{Object.keys(wallets).length != 1 ? `s` : ``}</p>
