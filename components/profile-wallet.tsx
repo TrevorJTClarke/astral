@@ -1,53 +1,22 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import Link from 'next/link';
-import { MouseEventHandler, useEffect, useMemo, useState } from 'react';
-import { ChainCard } from '../components';
-import { Address, truncate } from './react/views';
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowPathIcon,
-  ArrowDownTrayIcon,
   WalletIcon,
   ClipboardDocumentIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/outline'
 import { getWalletConfigById } from '../contexts/connections'
-import { ChevronDownIcon, CheckIcon } from '@heroicons/react/20/solid';
-import copyToClipboard from 'copy-to-clipboard';
-import { useChain } from '@cosmos-kit/react';
+import { ChevronDownIcon } from '@heroicons/react/20/solid'
+import { useChain } from '@cosmos-kit/react'
 import { useAccount } from 'wagmi'
-import { WalletStatus } from '@cosmos-kit/core';
-import { chainName } from '../config';
-
-const buttons = {
-  Disconnected: {
-    icon: WalletIcon,
-    title: 'Connect',
-  },
-  Connected: {
-    icon: WalletIcon,
-    title: 'My Wallet',
-  },
-  Rejected: {
-    icon: ArrowPathIcon,
-    title: 'Reconnect',
-  },
-  Error: {
-    icon: ArrowPathIcon,
-    title: 'Change Wallet',
-  },
-  NotExist: {
-    icon: ArrowDownTrayIcon,
-    title: 'Install Wallet',
-  },
-};
+import { chainName } from '../config'
 
 export const ProfileWallet = () => {
   const [wallets, setWallets] = useState({});
-  const [walletConfig, setWalletConfig] = useState();
   const [walletId, setWalletId] = useState();
   const rootAccount = useAccount({
     onDisconnect() {
       setWalletId()
-      setWalletConfig()
       setWallets()
     }
   })
@@ -72,7 +41,6 @@ export const ProfileWallet = () => {
   useEffect(() => {
     if (!walletId) return
     const wc = getWalletConfigById(walletId)
-    setWalletConfig(wc)
     setWallets(prev => {
       const p = { ...prev }
       p[walletId] = wc

@@ -9,7 +9,7 @@ import { AssetList, Asset, Chain } from '@chain-registry/types';
 import { useChain, useManager } from '@cosmos-kit/react';
 import { contracts, stargaze } from 'stargazejs';
 import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
-import { useQuery, useLazyQuery } from '@apollo/client';
+import { useQuery, useLazyQuery, useApolloClient, ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client';
 import Loader from '../components/loader'
 import NftImage from '../components/nft-image'
 import {
@@ -29,13 +29,15 @@ import {
   coin,
   COLLECTION,
   COLLECTIONS,
-  OWNEDTOKENS,
+  OWNEDTOKENS_STARGAZE,
+  OWNEDTOKENS_ETHEREUM,
   exponent,
   getHttpUrl,
   toDisplayAmount,
   getChainForAddress,
   getChainAssets,
   marketInfo,
+  disallowedNFTFormats,
 } from '../config'
 import {
   availableNetworks,
@@ -60,6 +62,12 @@ const defaultSelectedNetworks = (): ChainSelectable[] => {
   })
 }
 
+const apolloUriEthereum = process.env.NEXT_PUBLIC_APOLLO_URI_ETHEREUM || ''
+const clientEthereum = new ApolloClient({
+  uri: apolloUriEthereum,
+  cache: new InMemoryCache(),
+});
+
 // cache the query clients
 const clients: any = {}
 
@@ -71,7 +79,9 @@ export default function MyNfts() {
   const [selectedChains, setSelectedChains] = useState<ChainSelectable[]>([]);
   const [nfts, setNfts] = useState<any[]>([]);
   const [ownerAddresses, setOwnerAddresses] = useState<QueryChainAddresses>({});
-  const [getOwnedTokens, ownedTokensQuery] = useLazyQuery<OwnedTokens>(OWNEDTOKENS);
+  const [getOwnedTokensStargaze, ownedTokensStargazeQuery] = useLazyQuery<OwnedTokens>(OWNEDTOKENS_STARGAZE);
+  const [getOwnedTokensEthereum, ownedTokensEthereumQuery] = useLazyQuery(OWNEDTOKENS_ETHEREUM, { client: clientEthereum })
+  
 
   // dynamic wallet/client connections
   const manager = useManager()
@@ -93,7 +103,7 @@ export default function MyNfts() {
     if (ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']) {
       const ownerAddrs = ownerAddresses['elgafar-1'] || ownerAddresses['stargaze-1']
       ownerAddrs.forEach(owner => {
-        getOwnedTokens({
+        getOwnedTokensStargaze({
           variables: {
             owner,
             // filterForSale: null,
@@ -120,10 +130,21 @@ export default function MyNfts() {
     applyDedupeNfts(adjustedNfts)
   }
 
-  const getExternalNfts = async () => {
-    if (ownedTokensQuery?.data?.tokens?.tokens) {
+  const getOwnedNFTsEth = async () => {
+    getOwnedTokensEthereum({
+      client: clientEthereum,
+      variables: {
+        // TODO:
+        owner: '0x17cd072cbd45031efc21da538c783e0ed3b25dcc',
+        limit: 20
+      },
+    })
+  }
+
+  const annotateNftsCosmos = async () => {
+    if (ownedTokensStargazeQuery?.data?.tokens?.tokens) {
       // adjust output for better UI facilitation
-      const { tokens } = ownedTokensQuery.data.tokens
+      const { tokens } = ownedTokensStargazeQuery.data.tokens
       const adjustedTokens: any[] = tokens.map(tkn => {
         let t = { ...tkn }
         t.chain = getChainForAddress(t.collectionAddr)
@@ -140,9 +161,54 @@ export default function MyNfts() {
     }
   }
 
+  const annotateNftsEthereum = async () => {
+    if (ownedTokensEthereumQuery?.data?.tokens?.nodes) {
+      // adjust output for better UI facilitation
+      const { nodes } = ownedTokensEthereumQuery.data.tokens
+      if (!nodes) return
+      const adjustedTokens: any[] = nodes.map(tkn => {
+        let t = { ...tkn.token }
+        t.chain = {
+          chain_id: 'ethereummainnet',
+          chain_name: 'ethereum',
+          pretty_name: 'Ethereum',
+          bech32_prefix: '0x',
+        }
+        t.asset = {
+          base: '0x',
+          name: 'Ethereum',
+          display: 'ethereum',
+          symbol: 'ETH',
+          logo_URIs: {
+            // svg: '',
+            png: '/logos/ethereum-logo.png',
+          },
+        }
+        // image adjust for computed onchain images!
+        if (t.image.url && t.image.mimeType === 'image/svg+xml') {
+          // t.image = {
+          //   backgroundUrl: `url('${t.image.url}')`,
+          //   sourceUrl: t.image.url,
+          // }
+          t.backgroundUrl = `url('${t.image.url}')`
+        } else if (t.image.url !== null && !t.imageUri) {
+          t.imageUrl = t.image.url
+        } else if (t.content.url !== null && !t.imageUri) {
+          t.imageUrl = t.content.url
+        }
+        t.collection_addr = t.collectionAddress
+        t.token_id = t.tokenId
+        t.href = `my-nfts/${t.collection_addr}/${t.token_id}`
+        return t
+      }).filter(t => !disallowedNFTFormats.includes(t.tokenUrlMimeType))
+      console.log('adjustedTokens', adjustedTokens);
+      applyDedupeNfts(adjustedTokens)
+    }
+  }
+
   const getData = async () => {
     setIsLoading(true);
-    await Promise.all([getOwnedNFTs()]);
+    await Promise.all([getOwnedNFTs(), getOwnedNFTsEth()]);
     setIsLoading(false);
   };
 
@@ -168,9 +234,17 @@ export default function MyNfts() {
   }
 
   useEffect(() => {
-    getExternalNfts()
+    annotateNftsCosmos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownedTokensQuery.data]);
+  }, [ownedTokensStargazeQuery.data]);
+  
+  useEffect(() => {
+    const { data, loading, error } = ownedTokensEthereumQuery
+    console.log('ownedTokensEthQuery', data, loading, error);
+    annotateNftsEthereum()
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedTokensEthereumQuery.data]);
   
   useEffect(() => {
     if (!isAuthed) return;
@@ -190,7 +264,9 @@ export default function MyNfts() {
       setIsLoadingProviders(true)
       for await (const chain of selectedChains) {
         if (!chain.selected) ownerAddresses[chain.chain_id] = []
-        else {
+        else if (chain.chain_id === 'ethereummainnet') {
+          // console.log('TODO:')
+        } else {
           const repo = manager.getWalletRepo(chain.chain_name)
           if (repo.isWalletDisconnected) await repo.connect(repo.wallets[0].walletName, true)
           if (repo.current?.address) {
@@ -299,7 +375,7 @@ export default function MyNfts() {
                 <Link className="z-[2] focus:outline-none" href={`${nft.href}`}>
                   <div className="relative bg-neutral-50 dark:bg-black">
                     <div>
-                      <NftImage uri={nft.imageUrl} alt={nft.name} />
+                      <NftImage uri={nft.imageUrl} alt={nft.name} backgroundUrl={nft.backgroundUrl} />
                     </div>
                     <div className="transition-transition-all -mb-2 group-hover:mb-0 duration-300 opacity-80 group-hover:opacity-100 flex justify-between inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 lg:absolute lg:pt-24">
                       <div className="relative w-9/12">

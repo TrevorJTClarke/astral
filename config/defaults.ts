@@ -3,6 +3,13 @@ import { AssetList, Asset, Chain } from '@chain-registry/types';
 import { fromBech32 } from "@cosmjs/encoding";
 import BigNumber from 'bignumber.js';
 
+export const disallowedNFTFormats = [
+  'text/plain',
+  'video/mp4',
+  'video/quicktime',
+  'audio/mpeg',
+]
+
 export function classNames(...classes: any[]) {
   return classes.filter(Boolean).join(' ')
 }

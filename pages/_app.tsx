@@ -25,10 +25,12 @@ import { SignerOptions } from '@cosmos-kit/core';
 import { chains, assets } from 'chain-registry';
 import { Chain } from '@chain-registry/types';
 
+
+const apolloUriStargaze = process.env.NEXT_PUBLIC_APOLLO_URI_STARGAZE || networkType === 'testnet'
+  ? 'https://constellations-api.testnet.stargaze-apis.com/graphql'
+  : 'https://constellations-api.mainnet.stargaze-apis.com/graphql'
 const client = new ApolloClient({
-  uri: networkType === 'testnet'
-    ? 'https://constellations-api.testnet.stargaze-apis.com/graphql'
-    : 'https://constellations-api.mainnet.stargaze-apis.com/graphql',
+  uri: apolloUriStargaze,
   cache: new InMemoryCache(),
 });
 

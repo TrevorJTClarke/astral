@@ -192,6 +192,24 @@ connectionChannels.forEach((channels: NFTChannel) => {
   if (Object.keys(connection).length > 0) extendedChannels.push(connection)
 })
 
+// Add ethereum context
+networkMap.ethereummainnet = {
+	chain_id: 'ethereummainnet',
+	chain_name: 'ethereum',
+	pretty_name: 'Ethereum',
+	bech32_prefix: '0x',
+	asset: {
+		base: '0x',
+		name: 'Ethereum',
+		display: 'ethereum',
+		symbol: 'ETH',
+		logo_URIs: {
+			// svg: '',
+			png: '/logos/ethereum-logo.png',
+		},
+	},
+}
+
 export const availableNetworks: Chain[] | undefined = Object.values(networkMap)
 
 export const isAvailableNetwork = (chain_id: string) => (availableNetworks.find(n => n.chain_id === chain_id) !== undefined)
