@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
 import { useChain, useManager } from '@cosmos-kit/react';
+import { useQuery, useLazyQuery, useApolloClient, ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client';
 import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
 import Loader from '../../../components/loader'
 import NftImage from '../../../components/nft-image'
@@ -28,6 +29,8 @@ import {
   getMarketForAddress,
   getChainAssets,
   getChainForAddress,
+  ethereummainnet,
+  GET_TOKEN_ETHEREUM,
 } from '../../../config'
 import {
   availableNetworks,
@@ -41,6 +44,12 @@ import {
   queryNftContractMsg,
 } from '../../../contexts/ics721'
 
+const apolloUriEthereum = process.env.NEXT_PUBLIC_APOLLO_URI_ETHEREUM || ''
+const clientEthereum = new ApolloClient({
+  uri: apolloUriEthereum,
+  cache: new InMemoryCache(),
+});
+
 export default function NftDetail() {
   const { query } = useRouter()
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +60,7 @@ export default function NftDetail() {
   const [token, setToken] = useState<Partial<Token>>({});
   const [contractsAddress, setContractsAddress] = useState<string | undefined>();
   const [provenance, setProvenance] = useState<Provenance[]>([]);
+  const [getTokenEthereum, tokenEthereumQuery] = useLazyQuery(GET_TOKEN_ETHEREUM, { client: clientEthereum })
 
   const [transferModalOpen, setTransferModalOpen] = useState(false)
 
@@ -60,7 +70,7 @@ export default function NftDetail() {
   // get contract address from url
   if (query.collection && !contractsAddress) setContractsAddress(`${query.collection}`);
 
-  const getAllInfo = async () => {
+  const getAllInfoCosmos = async () => {
     if (!contractsAddress || !currentChainName) return;
 
     try {
@@ -170,14 +180,91 @@ export default function NftDetail() {
     }
   };
 
-  const getData = async () => {
+  const getAllInfoEthereum = async () => {
+    getTokenEthereum({
+      client: clientEthereum,
+      variables: {
+        address: `${query.collection}`,
+        tokenId: `${query.tokenId}`,
+      },
+    })
+  }
+
+  useEffect(() => {
+    const { data, loading, error } = tokenEthereumQuery
+    console.log('tokenEthereumQuery', data, loading, error);
+    if (data && data.token) {
+      console.log('token', data.token.token);
+      const { token } = data.token
+      let t = { ...token }
+
+      if (t.image && t.image.mimeType === 'image/svg+xml') {
+        t.backgroundUrl = `url('${t.image.url}')`
+      }
+      if (t.content && t.content.mimeType === 'image/svg+xml') {
+        t.backgroundUrl = `url('${t.content.url}')`
+      }
+
+      // image adjust for computed onchain images!
+      if (
+        (t.image.url && t.image.mimeType === 'image/svg+xml') ||
+        (t.content.url && t.content.mimeType === 'image/svg+xml')
+      ) {
+        // t.image = {
+        //   backgroundUrl: `url('${t.image.url}')`,
+        //   sourceUrl: t.image.url,
+        // }
+        t.backgroundUrl = `url('${t.image.url || t.content.url}')`
+      } else if (t.image.url !== null && !t.imageUri) {
+        t.imageUrl = t.image.url
+      } else if (t.content.url !== null && !t.imageUri) {
+        t.imageUrl = t.content.url
+      }
+
+      // adjust the image from metadata
+      if (token?.image?.url) t.image = token.image.url
+      if (token?.content?.url) t.image = token.content.url
+      console.log('token t', t);
+
+      setToken(t)
+      setTokenUri({ access: { owner: token.owner }})
+      setData({
+        name: token.tokenContract.name,
+        creator: token.mintInfo.originatorAddress,
+      })
+
+      // TODO: FINISH once we have gravity bridge finalized!!!
+      setProvenance([
+        {
+          chain: ethereummainnet,
+          asset: ethereummainnet.asset,
+          nft_addr: contractsAddress || '',
+          class_id: contractsAddress,
+          is_origin: true,
+        },
+      ])
+
+      setHasData(true)
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenEthereumQuery.data]);
+
+  const getCosmosData = async () => {
     setIsLoading(true);
-    await getAllInfo()
+    await getAllInfoCosmos()
+    setIsLoading(false);
+  };
+
+  const getEthereumData = async () => {
+    setIsLoading(true);
+    await getAllInfoEthereum()
     setIsLoading(false);
   };
 
   useEffect(() => {
-    getData();
+    if (currentChainName === ethereummainnet.chain_name) getEthereumData()
+    else getCosmosData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChainName]);
   
@@ -188,6 +275,7 @@ export default function NftDetail() {
     }
     const currentChain = getChainForAddress(contractsAddress)
     if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
+    if (contractsAddress?.startsWith(ethereummainnet.bech32_prefix)) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress]);
 
@@ -209,6 +297,7 @@ export default function NftDetail() {
         setToken((prev) => ({
           ...prev,
           ...data,
+          imageUrl: data.image.url || data.image,
         }));
       })
       .catch(e => {
@@ -217,10 +306,11 @@ export default function NftDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress, tokenUri]);
 
-  const imageUrl = getHttpUrl(token?.image)
+  const imageUrl = token.imageUrl && !token.backgroundUrl ? getHttpUrl(token?.imageUrl) : null
   const tokenDescription = `${token.description}`
   const tokenChain = contractsAddress ? getChainForAddress(contractsAddress) : null
   const market = contractsAddress ? getMarketForAddress(`${contractsAddress}`) : null
+  const marketLink = market ? market.marketDetailLink(contractsAddress, query.tokenId) : null
 
   if (tokenChain) {
     const assetList = getChainAssets(tokenChain)
@@ -229,7 +319,7 @@ export default function NftDetail() {
   }
 
   return (
-    <div className="my-4">
+    <div className="min-h-window p-4">
 
       {isLoading && (<div className="relative mx-auto mb-24 text-center text-white">
         <Loader />
@@ -246,7 +336,7 @@ export default function NftDetail() {
           <div className="mx-auto bg-white p-4 pb-12 dark:bg-black sm:p-6 lg:p-8">
             <div className="mx-auto gap-x-8 p-0 sm:px-6 lg:grid lg:max-w-screen-2xl lg:grid-cols-2 lg:gap-x-24">
               <div className="flex flex-col shrink divide-y border bg-white transition-shadow rounded-lg border-zinc-300 shadow-sm dark:border-zinc-800 divide-zinc-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black w-full overflow-hidden rounded-l-lg sm:rounded-t-lg sm:rounded-bl-none" >
-                <NftImage uri={imageUrl} alt={token.name} />
+                <NftImage uri={imageUrl} alt={token.name} backgroundUrl={token.backgroundUrl} />
               </div>
               <div className="mt-8 lg:mt-0">
                 <div className="flex items-center justify-between">
@@ -273,8 +363,8 @@ export default function NftDetail() {
                       <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
                     </button>
                     {market && (
-                      <a href={market.marketLink} className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
-                        <span className="flex-none">View Market</span>
+                      <a href={marketLink} target="_blank" className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                        <span className="flex-none">View on Market</span>
                         <ShoppingBagIcon className="flex-shrink-0 w-5 h-5 ml-2 " />
                       </a>
                     )}

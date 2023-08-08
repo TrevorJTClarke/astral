@@ -3,6 +3,7 @@ import {
   networkType,
   getChainAssets,
   getChainByChainId,
+	ethereummainnet,
 } from '../config'
 
 export const walletProxyList = {
@@ -193,22 +194,7 @@ connectionChannels.forEach((channels: NFTChannel) => {
 })
 
 // Add ethereum context
-networkMap.ethereummainnet = {
-	chain_id: 'ethereummainnet',
-	chain_name: 'ethereum',
-	pretty_name: 'Ethereum',
-	bech32_prefix: '0x',
-	asset: {
-		base: '0x',
-		name: 'Ethereum',
-		display: 'ethereum',
-		symbol: 'ETH',
-		logo_URIs: {
-			// svg: '',
-			png: '/logos/ethereum-logo.png',
-		},
-	},
-}
+networkMap.ethereummainnet = ethereummainnet
 
 export const availableNetworks: Chain[] | undefined = Object.values(networkMap)
 

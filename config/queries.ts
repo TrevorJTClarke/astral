@@ -71,8 +71,8 @@ query OwnedTokens($owner: [String!], $limit: Int!) {
   tokens(
     networks: [{network: ${defaultEthNetwork}, chain: ${defaultEthChainId}}],
     pagination: {limit: $limit},
-    where: {ownerAddresses: $owner})
-  {
+    where: {ownerAddresses: $owner}
+  ) {
     nodes {
       token {
         collectionAddress
@@ -97,6 +97,49 @@ query OwnedTokens($owner: [String!], $limit: Int!) {
         }
         metadata
       }
+    }
+  }
+}
+`;
+export const GET_TOKEN_ETHEREUM = gql`
+query OwnedTokens($address: String!, $tokenId: String!) {
+  token(
+    network: {network: ${defaultEthNetwork}, chain: ${defaultEthChainId}},
+    token: {address: $address, tokenId: $tokenId}
+  ) {
+    token {
+      collectionAddress
+      collectionName
+      description
+      tokenId
+      tokenStandard
+      tokenUrlMimeType
+      name
+      owner
+      content {
+        url
+        mimeType
+      }
+      image {
+        url
+        mimeType
+      }
+      networkInfo {
+        network
+        chain
+      }
+      mintInfo {
+        originatorAddress
+        toAddress
+      }
+      tokenContract {
+        collectionAddress
+        name
+        description
+        symbol
+        totalSupply
+      }
+      metadata
     }
   }
 }
