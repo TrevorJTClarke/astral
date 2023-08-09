@@ -3,7 +3,55 @@ import {
   networkType,
   getChainAssets,
   getChainByChainId,
+	ethereummainnet,
 } from '../config'
+
+export const walletProxyList = {
+	'keplr-extension': 'keplr',
+	'keplr-mobile': 'keplr',
+	'cosmostation-extension': 'cosmostation',
+	'cosmostation-mobile': 'cosmostation',
+	'walletconnect': 'walletconnectv2',
+	'🌈 rainbow': 'rainbowwallet',
+	'🌈rainbow': 'rainbowwallet',
+	'rainbow': 'rainbowwallet',
+}
+
+export const walletConfigs = {
+	coinbasewallet: {
+		name: 'Coinbase Wallet',
+		logoUrl: '/logos/coinbasewallet.svg',
+	},
+	cosmostation: {
+		name: 'Cosmostation',
+		logoUrl: '/logos/cosmostation.png',
+	},
+	keplr: {
+		name: 'Keplr',
+		logoUrl: '/logos/keplr.svg',
+	},
+	leap: {
+		name: 'Leap Wallet',
+		logoUrl: '/logos/leap.png',
+	},
+	metamask: {
+		name: 'MetaMask',
+		logoUrl: '/logos/metamask.svg',
+	},
+	rainbowwallet: {
+		name: '🌈 Rainbow',
+		logoUrl: '/logos/rainbowwallet.svg',
+	},
+	walletconnectv2: {
+		name: 'Wallet Connect',
+		logoUrl: '/logos/walletconnect.svg',
+	},
+}
+
+export const getWalletConfigById = (id: string) => {
+	if (walletConfigs[id]) return walletConfigs[id]
+	if (walletConfigs[walletProxyList[id]]) return walletConfigs[walletProxyList[id]]
+}
 
 export interface NFTChannel {
   chain_id: string
@@ -144,6 +192,9 @@ connectionChannels.forEach((channels: NFTChannel) => {
 
   if (Object.keys(connection).length > 0) extendedChannels.push(connection)
 })
+
+// Add ethereum context
+networkMap.ethereummainnet = ethereummainnet
 
 export const availableNetworks: Chain[] | undefined = Object.values(networkMap)
 

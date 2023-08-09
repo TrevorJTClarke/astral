@@ -68,6 +68,8 @@ export interface TData extends SG721 {
 export type Token = {
   description: string;
   image: string;
+  imageUrl?: string;
+  backgroundUrl?: string;
   name: string;
 };
 
