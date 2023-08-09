@@ -62,7 +62,7 @@ export const toDisplayAmount = (amount: string, exponent: number) => {
 };
 
 export const getHttpUrl = (ipfsLink: string | undefined) => {
-  if (!ipfsLink) return '';
+  if (!ipfsLink || ipfsLink === 'undefined') return '';
   if (ipfsLink.startsWith('http')) return ipfsLink
   return `https://ipfs-gw.stargaze-apis.com/ipfs/${ipfsLink.slice(7)}`;
 };
@@ -83,20 +83,21 @@ export const getChainAssets = (chain: Chain): AssetList => {
   ) as AssetList;
 }
 
-export const marketInfo = [
-  {
-    chain_name: 'stargaze',
-    name: 'Stargaze Marketplace',
-    logoPath: '/stargaze.svg',
-    marketLink: 'https://stargaze.zone/marketplace',
-    marketDetailLink: (address, tokenId) => `https://stargaze.zone/marketplace/${address}/${tokenId}`,
-  },
+const marketInfos = [
   {
     chain_name: 'omniflix',
     name: 'Omniflix Marketplace',
     logoPath: '/omniflix.svg',
     marketLink: 'https://omniflix.market/home',
     marketDetailLink: (_, tokenId) => `https://omniflix.market/nft/${tokenId}`,
+  },
+  {
+    chain_name: 'ethereum',
+    name: 'Zora',
+    logoPath: '/logos/zora.png',
+    marketLink: 'https://zora.co',
+    // https://zora.co/collect/eth:0xbdf1ee84d043ef317e3ba1e1f56dace695bf46a8/1
+    marketDetailLink: (address, tokenId) => `https://zora.co/collect/eth:${address}/${tokenId}`,
   },
   {
     chain_name: 'uptick',
@@ -119,21 +120,30 @@ export const marketInfo = [
     marketLink: 'https://nft-juno.loop.markets/collections',
     marketDetailLink: (address, tokenId) => `https://nft-juno.loop.markets/nftDetail/${address}/${tokenId}`,
   },
-  {
-    chain_name: 'ethereum',
-    name: 'Zora',
-    logoPath: '/zora.png',
-    marketLink: 'https://zora.co',
-    // https://zora.co/collect/eth:0xbdf1ee84d043ef317e3ba1e1f56dace695bf46a8/1
-    marketDetailLink: (address, tokenId) => `https://zora.co/collect/eth:${address}/${tokenId}`,
-  },
 ]
+
+if (networkType === 'testnet') {
+  marketInfos.unshift({
+    chain_name: 'stargazetestnet',
+    name: 'Stargaze Marketplace',
+    logoPath: '/stargaze.svg',
+    marketLink: 'http://testnet.publicawesome.dev/marketplace',
+    marketDetailLink: (address, tokenId) => `http://testnet.publicawesome.dev/marketplace/${address}/${tokenId}`,
+  })
+} else {
+  marketInfos.unshift({
+    chain_name: 'stargaze',
+    name: 'Stargaze Marketplace',
+    logoPath: '/stargaze.svg',
+    marketLink: 'https://stargaze.zone/marketplace',
+    marketDetailLink: (address, tokenId) => `https://stargaze.zone/marketplace/${address}/${tokenId}`,
+  })
+}
+
+export const marketInfo = marketInfos
 
 export const getMarketForAddress = (address: string) => {
   if (!address || address.length < 10) return;
-  console.log('address.startsWith(ethereummainnet.bech32_prefix)', address.startsWith(ethereummainnet.bech32_prefix));
-  console.log('fdsfsajfkldsajkfldsa', marketInfo.find((m) => m?.chain_name === chain?.chain_name));
-  
   const chain = address.startsWith(ethereummainnet.bech32_prefix)
     ? ethereummainnet
     : getChainForAddress(address)

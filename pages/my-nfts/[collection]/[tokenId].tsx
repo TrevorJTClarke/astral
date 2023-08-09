@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from 'next/router';
 import { useChain, useManager } from '@cosmos-kit/react';
 import { useQuery, useLazyQuery, useApolloClient, ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client';
@@ -63,6 +63,7 @@ export default function NftDetail() {
   const [getTokenEthereum, tokenEthereumQuery] = useLazyQuery(GET_TOKEN_ETHEREUM, { client: clientEthereum })
 
   const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const isEthereumAddress = contractsAddress?.startsWith(ethereummainnet.bech32_prefix)
 
   // dynamic wallet/client connections
   const manager = useManager()
@@ -72,12 +73,16 @@ export default function NftDetail() {
 
   const getAllInfoCosmos = async () => {
     if (!contractsAddress || !currentChainName) return;
+    console.log('getAllInfoCosmos HEREEE----------------');
+    
 
     try {
       const p = []
       const repo = manager.getWalletRepo(currentChainName)
       const cosmWasmClient = await repo.getCosmWasmClient();
+      console.log('cosmWasmClient', cosmWasmClient)
       const nftInfo = await cosmWasmClient.queryContractSmart(contractsAddress, { all_nft_info: { token_id: `${query.tokenId}` || '' } })
+      console.log('nftInfo', nftInfo)
       setTokenUri(nftInfo)
 
       p.push(cosmWasmClient.queryContractSmart(contractsAddress, { contract_info: {} }))
@@ -191,6 +196,7 @@ export default function NftDetail() {
   }
 
   useEffect(() => {
+    if (!isEthereumAddress) return;
     const { data, loading, error } = tokenEthereumQuery
     console.log('tokenEthereumQuery', data, loading, error);
     if (data && data.token) {
@@ -263,23 +269,27 @@ export default function NftDetail() {
   };
 
   useEffect(() => {
+    if (!currentChainName) return;
+    console.log('currentChainName', currentChainName)
     if (currentChainName === ethereummainnet.chain_name) getEthereumData()
     else getCosmosData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChainName]);
   
-  useEffect(() => {
+  useMemo(() => {
+    console.log('HERE!!!!!', contractsAddress);
+    
     if (!contractsAddress) {
       setIsLoading(true);
       return;
     }
     const currentChain = getChainForAddress(contractsAddress)
     if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
-    if (contractsAddress?.startsWith(ethereummainnet.bech32_prefix)) setCurrentChainName(ethereummainnet.chain_name)
+    if (isEthereumAddress) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress]);
 
-  useEffect(() => {
+  useMemo(() => {
     if (!contractsAddress || !tokenUri) {
       return;
     }
@@ -358,7 +368,7 @@ export default function NftDetail() {
                 </p>
                 <div className="my-8">
                   <div className="grid grid-cols-2 gap-4 sm:max-w-xs">
-                    <button onClick={() => setTransferModalOpen(true)} className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                    <button disabled={isEthereumAddress} onClick={() => setTransferModalOpen(true)} className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
                       <span>Transfer</span>
                       <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
                     </button>

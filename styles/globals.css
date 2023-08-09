@@ -10,6 +10,16 @@
   min-height: calc(100vh - 164px);
 }
 
+html {
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  overflow: auto;
+}
+
 #stars {
   width: 1px;
   height: 1px;
