@@ -13,7 +13,7 @@ let resolvedCache = {}
 let providerCache = {}
 
 // Why not "useNameService"? Because it causes infinite RPC provider/cosmWasmClient bootstrapping... ugh
-export const useCosmosNameService = async (manager, name, address) => {
+export const resolveCosmosNameService = async (manager, name, address) => {
   if (providerCache[name]) return providerCache[name].resolveName(address)
   const registry = getNameServiceRegistryFromName(name)
   if (!registry) throw new Error('No such name service: ' + name)
@@ -53,7 +53,7 @@ export function ResolveCosmosNames({ address, len }) {
     if (resolvedCache[address]) return setResolvedName(resolvedCache[address])
     try {
       const nsName = `${address}`.search('stars') > -1 ? 'stargaze' : 'icns'
-      const res = await useCosmosNameService(manager, nsName, address)
+      const res = await resolveCosmosNameService(manager, nsName, address)
       if (!res) return
       // For ICNS
       let name

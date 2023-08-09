@@ -373,7 +373,7 @@ export default function NftDetail() {
                       <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
                     </button>
                     {market && (
-                      <a href={marketLink} target="_blank" className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                      <a href={marketLink} target="_blank" rel="noreferrer" className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
                         <span className="flex-none">View on Market</span>
                         <ShoppingBagIcon className="flex-shrink-0 w-5 h-5 ml-2 " />
                       </a>
