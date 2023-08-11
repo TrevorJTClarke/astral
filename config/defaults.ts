@@ -83,6 +83,13 @@ export const getChainAssets = (chain: Chain): AssetList => {
   ) as AssetList;
 }
 
+export function getLogFromError(str) {
+  const rgx = /log:(?:[a-zA-Z ])+/g
+  const found = rgx.exec(`${str}`.toLowerCase())
+  if (!found || found.length <= 0) return 'Transaction rejected by user'
+  return `${found[0]}`.replace('log: ', '')
+}
+
 const marketInfos = [
   {
     chain_name: 'omniflix',
@@ -130,6 +137,13 @@ if (networkType === 'testnet') {
     marketLink: 'http://testnet.publicawesome.dev/marketplace',
     marketDetailLink: (address, tokenId) => `http://testnet.publicawesome.dev/marketplace/${address}/${tokenId}`,
   })
+  marketInfos.push({
+    chain_name: 'terra2testent',
+    name: 'Talis Marketplace',
+    logoPath: '/logos/talis.svg',
+    marketLink: 'https://talis.art/marketplace',
+    marketDetailLink: (address, tokenId) => `https://talis.art/nft/${tokenId}`,
+  })
 } else {
   marketInfos.unshift({
     chain_name: 'stargaze',
@@ -137,6 +151,13 @@ if (networkType === 'testnet') {
     logoPath: '/stargaze.svg',
     marketLink: 'https://stargaze.zone/marketplace',
     marketDetailLink: (address, tokenId) => `https://stargaze.zone/marketplace/${address}/${tokenId}`,
+  })
+  marketInfos.push({
+    chain_name: 'terra2',
+    name: 'Talis Marketplace',
+    logoPath: '/logos/talis.svg',
+    marketLink: 'https://talis.art/marketplace',
+    marketDetailLink: (address, tokenId) => `https://talis.art/nft/${tokenId}`,
   })
 }
 

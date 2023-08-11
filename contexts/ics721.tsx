@@ -27,10 +27,19 @@ export interface IBCTransferMsg {
   receiver: string
   channel_id: string
   timeout: {
-    block: {
+    block?: {
       revision: number
       height: number
     }
+    timestamp?: string
+  }
+}
+
+export interface ICS721InvokeSendNFT {
+  invoke_send_nft: {
+    collection: string
+    token_id: string
+    msg: string
   }
 }
 
@@ -40,6 +49,21 @@ export interface ICS721SendNFT {
     token_id: string
     msg: string
   }
+}
+
+export interface ICS721ApproveProxy {
+  approve: {
+    spender: string
+    token_id: string
+    expires: {
+      at_time: string
+    }
+  }
+}
+
+export interface MsgApproveIcsOptions {
+  proxy_addr: string
+  token_id: string
 }
 
 export interface MsgSendIcsOptions {
@@ -84,19 +108,61 @@ export const queryNftTokenInfoMsg = (token_id: string) => {
   return { all_nft_info: { token_id } }
 }
 
-export async function getMsgSendIcsNft(client: CosmWasmClient, options: MsgSendIcsOptions): Promise<ICS721SendNFT> {
-  const height = await client.getHeight()
-  if (!height) return Promise.reject('Block height request failed');
-  const chain = getChainForAddress(options.receiver)
-  const revision = chain?.chain_id ? parseInt(`${chain?.chain_id}`.split('-')[1]) : 1
+export const queryICSBridgeProxy = () => {
+  return { proxy: {} }
+}
+
+export const queryICSBridgeIncomingChannels = (start_after?: string, limit?: number) => {
+  return { incoming_channels: { start_after, limit } }
+}
+
+export const queryICSBridgeOutgoingChannels = (start_after?: string, limit?: number) => {
+  return { outgoing_channels: { start_after, limit } }
+}
+
+// 30mins from now, in nanos
+export const getNowPlus30Mins = () => `${(+new Date() + (30 * 60 * 1000)) * 1000000}`
+
+// Approve the transfer of an NFT via proxy before send
+export function getMsgApproveIcsProxy(options: MsgApproveIcsOptions): ICS721ApproveProxy {
+  return {
+    approve: {
+      // Spender is the proxy here, being approved to do so
+      spender: options.proxy_addr,
+      token_id: options.token_id,
+      expires: {
+        at_time: getNowPlus30Mins()
+      }
+    }
+  }
+}
+
+// Approved Sender with wrapped IBC transfer message
+export function getMsgProxySendIcsNft(options: MsgSendIcsOptions): ICS721InvokeSendNFT {
   const ibcTransferMsg: IBCTransferMsg = {
     receiver: options.receiver,
     channel_id: options.channel_id,
     timeout: {
-      block: {
-        revision,
-        height: height + 30
-      }
+      timestamp: getNowPlus30Mins()
+    }
+  }
+
+  return {
+    invoke_send_nft: {
+      collection: options.contract,
+      token_id: options.token_id,
+      msg: toBase64(toUtf8(JSON.stringify(ibcTransferMsg)))
+    }
+  }
+}
+
+// Vanilla IBC transfer message
+export function getMsgSendIcsNft(options: MsgSendIcsOptions): ICS721SendNFT {
+  const ibcTransferMsg: IBCTransferMsg = {
+    receiver: options.receiver,
+    channel_id: options.channel_id,
+    timeout: {
+      timestamp: getNowPlus30Mins()
     }
   }
 
@@ -113,6 +179,7 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
   const nftContracts: string[] = []
   const nftHoldings: QueryChainAddresses = {}
   const bridgeContracts = getBridgeContractsForChainId(chain_id)
+  if (!bridgeContracts || bridgeContracts.length < 1) return;
 
   // Query each bridge for its NFT contracts
   await Promise.all(bridgeContracts.map(addr => {
@@ -129,7 +196,8 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
       })
     })
   })
-  .catch(error => console.log(error))
+  // .catch(error => console.log(error))
+  if (!nftContracts || nftContracts.length < 1) return;
 
   const nftOwnerTokenIds = await Promise.all(nftContracts.map(nft => {
     try {
@@ -138,7 +206,8 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
       return Promise.reject(e)
     }
   }))
-  .catch(error => console.log(error))
+  // .catch(error => console.log(error))
+  if (!nftOwnerTokenIds || nftOwnerTokenIds.length < 1) return;
 
   nftOwnerTokenIds.forEach((data: any, idx: number) => {
     if (data?.tokens && data.tokens.length > 0) {
@@ -149,7 +218,6 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
     }
   })
 
-  console.log('nftHoldings', nftHoldings)
   const p2: Promise<any> = []
   const p3: Promise<any> = []
   const nft_token_collection_idxs: string[] = []
@@ -169,6 +237,7 @@ export async function getNftOwnerTokensForClient(chain_id: string, client: CosmW
   })
 
   const nft_token_info = await Promise.all(p2)
+  if (!nft_token_info || nft_token_info.length < 1) return;
 
   nft_token_info.forEach(ti => {
     const tokenUri = ti.info && ti.info.token_uri ? ti.info.token_uri : null

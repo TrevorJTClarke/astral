@@ -7,7 +7,8 @@ import Loader from '../../../components/loader'
 import NftImage from '../../../components/nft-image'
 import Address from '../../../components/address'
 import AliasAddress from '../../../components/alias-address'
-import TransferModal from '../../../components/transfer-modal'
+// import TransferModal from '../../../components/transfer-modal'
+import { TransferModal } from '../../../components/transfers'
 import {
   ArrowSmallRightIcon,
   CheckIcon,
@@ -445,7 +446,8 @@ export default function NftDetail() {
         </div>
       )}
 
-      <TransferModal imageUrl={imageUrl} isOpen={transferModalOpen} setOpen={setTransferModalOpen}></TransferModal>
+      {/* <TransferModal imageUrl={imageUrl} isOpen={transferModalOpen} setOpen={setTransferModalOpen}></TransferModal> */}
+      <TransferModal imageUrl={imageUrl} isOpen={transferModalOpen} setOpen={(b) => setTransferModalOpen(b)} />
 
     </div>
   );

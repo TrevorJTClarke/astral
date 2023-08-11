@@ -1,9 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { useTheme } from '../contexts/theme';
 import { NavProps, ActiveLink } from '../components';
 import { ProfileWallet } from '../components/profile-wallet';
-import { MoonIcon, SunIcon } from '@heroicons/react/24/outline';
 
 export const navItems: NavProps[] = [
   {
@@ -19,10 +17,9 @@ export const navItems: NavProps[] = [
 ];
 
 export const Header = () => {
-  const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-50 px-8 hidden h-24 w-full max-w-full bg-white border-b border-black/10 dark:border-zinc-800 dark:bg-black lg:flex lg:flex-row lg:items-center lg:justify-between">
+    <header className="sticky top-0 z-50 px-8 hidden h-24 w-full max-w-full bg-black border-b border-black/10 border-zinc-800 lg:flex lg:flex-row lg:items-center lg:justify-between">
       <div className="flex">
         <Link href="/">
           <div className="flex items-center transition-transform focus:scale-110 focus:outline-0 focus:drop-shadow-primary">
@@ -30,7 +27,7 @@ export const Header = () => {
           </div>
         </Link>
 
-        <nav className="flex flex-row space-x-4 bg-white px-2 py-6 ml-4 dark:bg-black">
+        <nav className="flex flex-row space-x-4 px-2 py-6 ml-4 bg-black">
           {navItems.map((item, idx) => (
             <div key={idx}>
               <ActiveLink
@@ -48,16 +45,6 @@ export const Header = () => {
       </div>
 
       <ProfileWallet />
-      {/* <button
-        className="inline-flex items-center justify-center w-12 h-12 text-black border rounded-lg dark:text-white hover:bg-black/10 dark:hover:bg-white/10 border-black/10 dark:border-white/10"
-        onClick={toggleTheme}
-      >
-        {theme === 'light' ? (
-          <MoonIcon className="w-5 h-5" />
-        ) : (
-          <SunIcon className="w-6 h-6" />
-        )}
-      </button> */}
     </header>
   );
 }

@@ -19,7 +19,6 @@ import { getSigningCosmosClientOptions } from 'stargazejs';
 
 import { TailwindModal } from '../components';
 import { networkType } from '../config';
-import { ThemeProvider } from '../contexts/theme';
 
 import { SignerOptions } from '@cosmos-kit/core';
 import { chains, assets } from 'chain-registry';
@@ -104,20 +103,18 @@ function AstralApp({ Component, pageProps }: AppProps) {
           borderRadius: 'medium',
           overlayBlur: 'small',
         })}>
-          <ThemeProvider>
-            <Head>
-              <title>Astral :: Interchain NFTs</title>
-              <meta name="description" content="Your bridge in the vast expanse of the blockchain universe. Use Astral for smooth transfers, transparent provenance and powerful NFT tools in the next chapter of the NFT revolution." />
-              <link rel="icon" href="/favicon.ico" />
-            </Head>
-            <ApolloProvider client={client}>
-              <div className="min-h-screen text-black bg-white dark:bg-black dark:text-white">
-                <Header />
-                <Component {...pageProps} />
-                <Footer />
-              </div>
-            </ApolloProvider>
-          </ThemeProvider>
+          <Head>
+            <title>Astral :: Interchain NFTs</title>
+            <meta name="description" content="Your bridge in the vast expanse of the blockchain universe. Use Astral for smooth transfers, transparent provenance and powerful NFT tools in the next chapter of the NFT revolution." />
+            <link rel="icon" href="/favicon.ico" />
+          </Head>
+          <ApolloProvider client={client}>
+            <div className="dark min-h-screen bg-black text-white">
+              <Header />
+              <Component {...pageProps} />
+              <Footer />
+            </div>
+          </ApolloProvider>
         </RainbowKitProvider>
       </WagmiConfig>
     </ChainProvider>
