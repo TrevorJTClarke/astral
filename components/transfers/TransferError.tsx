@@ -51,7 +51,7 @@ export default function TransferError({
             <ul role="list" className="overflow-hidden pointer-events-none text-red-600">
               {errors && errors.map((item, idx) => (
                 <li key={idx} className={classNames(idx > 1 ? 'pb-10' : '', 'relative')}>
-                  <p>{idx + 1}. {item}</p>
+                  <p>{idx + 1}. {`${item}`}</p>
                 </li>
               ))}
               {!errors.length && (

@@ -1,35 +1,37 @@
 /* eslint-disable @next/next/no-img-element */
 import { useRouter } from 'next/router';
 import { Dialog } from '@headlessui/react'
+import type { Dispatch } from './TransferModal'
 import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline'
 import NftImage from '../nft-image'
 
 export interface TransferSuccessType {
+  setOpen: Dispatch<boolean>
   imageUrl?: string
-  nextUrlHref?: string
+  data?: any
 }
 
 export default function TransferSuccess({
+  setOpen,
   imageUrl,
-  nextUrlHref,
+  data,
 }: TransferSuccessType) {
   const router = useRouter()
 
-  // router fun
+  // route to finished page
   const navigateToNft = async () => {
-    // TODO: Remove once below is finished, for now hackys
+    setOpen(false)
+    if (data.type === 'direct') return
+    if (data.nextUrl) return router.replace(data.nextUrl)
+    // fallback
     router.replace(`/my-nfts`)
-    // TODO:!
-    // try {
-    //   const destContract = `${}`
-    //   router.replace(`/my-nfts/${destContract}/${query.tokenId}`)
-    // } catch (e) {
-    //   // 
-    // }
-    // setOpen(false)
   }
+
+  // TODO: Get txHash explorer href!!!
+
+  const { txns } = data
 
   return (
     <div className="flex flex-col relative mt-0 text-center sm:mt-0">
@@ -43,8 +45,31 @@ export default function TransferSuccess({
         </div>
       </Dialog.Title>
 
-      <div className="relative mx-auto min-h-[250px] min-w-[250px] mt-8 text-center text-white">
+      <div className="flex justify-start gap-16 relative mx-auto mt-8">
         <NftImage className="min-h-[250px] min-w-[250px]" uri={imageUrl} />
+
+        {txns && txns.length > 0 && (
+          <div className="my-auto">
+            <ul role="list" className="overflow-hidden text-gray-300 text-left">
+              {txns.map((tx, idx) => (
+                <li key={idx} className="group mb-8">
+                  <p className="inline gap-2">
+                    {tx.type === 'approve' && (
+                      <span>{idx + 1}. Approval to Send NFT completed.</span>
+                    )}
+                    {tx.type === 'send' && (
+                      <span>{idx + 1}. Send NFT over IBC completed.</span>
+                    )}
+                    {tx.type === 'direct' && (
+                      <span>{idx + 1}. Send NFT completed.</span>
+                    )}
+                    <br /><a className="text-sm text-pink-300 group-hover:text-pink-700 underline" title={tx.txHash} href="">View transaction receipt 👉</a>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="mt-12 sm:mt-6 md:mt-12 flex justify-center">

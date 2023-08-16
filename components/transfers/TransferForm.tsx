@@ -21,14 +21,18 @@ import {
   extendedChannels,
   NFTChannel,
   NFTChannelChain,
+  getDestChannelFromSrc,
 } from '../../contexts/connections'
 import {
   queryICSBridgeProxy,
   queryICSBridgeIncomingChannels,
   queryICSBridgeOutgoingChannels,
+  queryNftContractMsg,
+  queryNftOwnerOfMsg,
   getMsgApproveIcsProxy,
   getMsgProxySendIcsNft,
   getMsgSendIcsNft,
+  queryICSProxyConfig,
 } from '../../contexts/ics721'
 import {
   classNames,
@@ -55,12 +59,12 @@ export interface TransferFormTypes {
 }
 
 let allSteps = [
-  { name: 'IBC Send', href: '#', status: 'current', description: 'Origin network sent asset' },
-  { name: 'IBC Receive', href: '#', status: 'upcoming', description: 'Destination network received asset' },
-  { name: 'IBC Confirm', href: '#', status: 'upcoming', description: 'Origin network acknowledged asset receipt' },
+  { name: 'Sending NFT', href: '#', status: 'current', description: 'Origin network sent asset' },
+  { name: 'Receiving NFT', href: '#', status: 'upcoming', description: 'Destination network received asset' },
+  { name: 'Confirming NFT', href: '#', status: 'upcoming', description: 'Origin network acknowledged asset receipt' },
 ]
 
-const approveStep = { name: 'IBC Approve', href: '#', status: 'current', description: 'Give permission to bridge to send asset' }
+const approveStep = { name: 'Approve Transfer', href: '#', status: 'current', description: 'Give permission to bridge to send asset' }
 
 export default function TransferForm({
   setOpen,
@@ -74,9 +78,14 @@ export default function TransferForm({
   const [destNetwork, setDestNetwork] = useState<Chain | undefined>()
   const [availableChannels, setAvailableChannels] = useState<NFTChannel[]>([])
   const [selectedChannel, setSelectedChannel] = useState<NFTChannel | undefined>()
+  const [showSteps, setShowSteps] = useState(false);
   const [currentSteps, setCurrentSteps] = useState(allSteps);
   const [currentIbcStep, setCurrentIbcStep] = useState(0);
   const [receiver, setReceiver] = useState('');
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  // keep track of confirmations
+  const txns: any[] = []
 
   // dynamic wallet/client connections
   const manager = useManager()
@@ -95,14 +104,19 @@ export default function TransferForm({
   }, [query.collection]);
 
   useEffect(() => {
-    // const as = allSteps.map((s, idx) => {
-    //   if (currentIbcStep > idx) s.status = 'complete'
-    //   if (currentIbcStep === idx) s.status = 'current'
-    //   if (currentIbcStep < idx) s.status = 'upcoming'
-    //   return s
-    // })
-    // setCurrentSteps(as)
-  }, [currentIbcStep]);
+    allSteps.map(s => {
+      s.status = 'upcoming'
+      return s
+    })
+    if (requiresApproval && !allSteps.find(s => s.name === 'Approve Transfer')) allSteps.unshift(approveStep)
+    const as = allSteps.map((s, idx) => {
+      if (currentIbcStep > idx) s.status = 'complete'
+      if (currentIbcStep === idx) s.status = 'current'
+      if (currentIbcStep < idx) s.status = 'upcoming'
+      return s
+    })
+    setCurrentSteps(as)
+  }, [currentIbcStep, requiresApproval]);
 
   useEffect(() => {
     if (!srcNetwork?.chain_id) return;
@@ -145,12 +159,103 @@ export default function TransferForm({
     }
   }
 
+  const getDestClient = async () => {
+    if (!destNetwork?.chain_name) return null
+    const repo = manager.getWalletRepo(destNetwork?.chain_name)
+    const wallet = repo.getWallet(repo.wallets[0].walletName)
+    if (!wallet) return null
+    return wallet.getCosmWasmClient()
+  }
+
+  const loopListener = async () => {
+    // get the opposite channel client
+    const client = await getDestClient()
+    console.log('loopListener client', client)
+    if (!client) return
+    let destContractAddr
+    let ownerFound = false
+
+    const dest = getDestChannelFromSrc(selectedChannel)
+    if (!dest) return
+    // get bridge contract & class_id
+    const destBridgeContractAddr = dest.port.split('.')[1]
+    const classId = `${dest.port}/${dest.channel}/${nftContractAddr}`
+    console.log('destBridgeContractAddr', destBridgeContractAddr)
+    console.log('classId', classId)
+
+    const loopInterval = 500
+    const loopMaxCalls = 120
+    let loopIndex = 0
+    const confirmReceived = async () => {
+      // Check maximum times, error if exceeds max timeout (potentially prompt self-relay)
+      if (loopIndex > loopMaxCalls) {
+        return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network."] })
+      }
+      // If no destContractAddr, sleep 500, recurse
+      if (!destContractAddr) {
+        // request the NFT contract on the dest chain, which confirms its existence and also gives us new link ot redirect user
+        try {
+          // class_id: wasm.juno1wk9te824s2as29qntdxtcs6fn8y350g6exuw7hldmrrwze6y6ugse8ulfa/channel-583/stars166xr8hy2t6tmzufnjpc6psnm3apgdk8lkayksu4qg4nxkdwr3gvs98wh7h
+          // returns contract: juno15khmwa5v7x6sfa5fp3yvhhh9j97enj3jrpdvdw2z8xfm2d6mppcqpqypw8
+          // This is then the correct next_url: juno15khmwa5v7x6sfa5fp3yvhhh9j97enj3jrpdvdw2z8xfm2d6mppcqpqypw8/4079 where token_id doesnt change
+          const res = await client.queryContractSmart(destBridgeContractAddr, queryNftContractMsg(classId))
+          console.log('destContractAddr res', res)
+          if (res) {
+            destContractAddr = res
+            setCurrentIbcStep(currentSteps.length - 1)
+          }
+        } catch (e) {
+          // quiet
+        }
+        if (!destContractAddr) {
+          console.log('CHECKING destContractAddr', loopIndex)
+          loopIndex++
+          return setTimeout(() => {
+            confirmReceived()
+          }, loopInterval)
+        }
+      }
+
+      if (destContractAddr && !ownerFound) {
+        // Query the dest contract for NFT ownership, if its not null, transfer successful
+        try {
+          const res = await client.queryContractSmart(destContractAddr, queryNftOwnerOfMsg(classId))
+          console.log('queryNftOwnerOfMsg res', res)
+          if (res && res.owner) ownerFound = true
+        } catch (e) {
+          // quiet
+        }
+        console.log('CHECKING ownerFound', loopIndex)
+        if (!ownerFound) {
+          loopIndex++
+          return setTimeout(() => {
+            confirmReceived()
+          }, loopInterval)
+        }
+      }
+
+      // fire off the onSuccess if all good
+      return onSuccess({
+        view: TransferView.Success,
+        txns,
+        nextUrl: `/${destContractAddr}/${query.tokenId}`
+      })
+    }
+
+    confirmReceived()
+  }
+
   const startTransfer = async () => {
     // TODO: REMOVE!!!!!!!!!! testing
     // return onSuccess({ view: TransferView.Success, txHash: 'BE8B1CB4A385099E07FF7D31D9A6A105BE47711C0304CDE38D9D3154AD1CEB10' })
     // return onError({ view: TransferView.Error, txHash: 'BE8B1CB4A385099E07FF7D31D9A6A105BE47711C0304CDE38D9D3154AD1CEB10', errors: ['Bad thing 1', 'wow, more bad things!'] })
 
     // TODO: Form validation on address return onError({ view: TransferView.Error, errors: ['Wallet not active or not found'] })
+    // Validations:
+    // - Valid address
+    // - Address is not same as signer (thats a weird send)
+    // - Address is matching bech32 of dest
+
     // TODO: bring back
     // setCurrentView(TransferView.Sending)
     await submitTransfer()
@@ -158,6 +263,9 @@ export default function TransferForm({
 
   // same-chain NFT send
   const sendDirect = async (signer, senderAddr) => {
+    setShowSteps(true)
+    setCurrentIbcStep(0)
+
     const sendMsg = {
       transfer_nft: {
         recipient: receiver,
@@ -175,7 +283,12 @@ export default function TransferForm({
       );
       console.log('sendDirect res', res)
       if (res?.transactionHash) {
-        onSuccess({ view: TransferView.Success, txHash: res?.transactionHash })
+        txns.push({
+          txHash: res?.transactionHash,
+          data: res,
+          type: 'direct',
+        })
+        onSuccess({ view: TransferView.Success, txns })
       }
     } catch (e) {
       // display error UI
@@ -187,6 +300,9 @@ export default function TransferForm({
 
   // Non-approval flow
   const transferBasic = async (signer, senderAddr, contractPort) => {
+    setShowSteps(true)
+    setCurrentIbcStep(0)
+
     const sendMsg = await getMsgSendIcsNft({
       channel_id: selectedChannel?.channel || '',
       contract: `${contractPort}`,
@@ -204,7 +320,13 @@ export default function TransferForm({
       );
       console.log('transferBasic res', res)
       if (res?.transactionHash) {
-        onSuccess({ view: TransferView.Success, txHash: res?.transactionHash })
+        txns.push({
+          txHash: res?.transactionHash,
+          data: res,
+          type: 'send',
+        })
+        return loopListener()
+        // onSuccess({ view: TransferView.Success, txHash: res?.transactionHash })
       }
     } catch (e) {
       // display error UI
@@ -214,18 +336,30 @@ export default function TransferForm({
     }
   }
 
-  // Non-approval flow
+  // needs-approval flow
   const transferApproved = async (signer, senderAddr, proxy_addr) => {
-    allSteps.map(s => {
-      s.status = 'upcoming'
-      return s
-    })
-    allSteps.unshift(approveStep)
-    console.log('allSteps', allSteps);
-    setCurrentSteps(allSteps)
-    setCurrentIbcStep(1)
+    // allSteps.map(s => {
+    //   s.status = 'upcoming'
+    //   return s
+    // })
+    // allSteps.unshift(approveStep)
+    // console.log('allSteps', allSteps, imageUrl);
+    // setCurrentSteps(allSteps)
+    setRequiresApproval(true)
+    setShowSteps(true)
+    setCurrentIbcStep(0)
 
-    return;
+    let proxy_fee = []
+    try {
+      // TODO: FINISH!!! (Likely need to verify channels are whitelisted, collection is whitelisted if non-stargaze)
+      const res = await signer.queryContractSmart(proxy_addr, queryICSProxyConfig())
+      if (res.ics721_config?.fee) proxy_fee = [res.ics721_config.fee]
+    } catch (e) {
+      // no proxy fee
+    }
+    console.log('proxy_fee', proxy_fee);
+
+    // TODO: Check if approval exists???
 
     // Need 2 messages:
     // 1. approve proxy (if available)
@@ -250,14 +384,18 @@ export default function TransferForm({
       );
       console.log('transferApproved msgApproveProxy res', res)
       if (res?.transactionHash) {
-        // TODO: Update progress UI
-        // onSuccess({ view: TransferView.Success, txHash: res?.transactionHash, data: res })
+        txns.push({
+          txHash: res?.transactionHash,
+          data: res,
+          type: 'approve',
+        })
       }
     } catch (e) {
       // display error UI
       console.error('transferApproved e', e)
       return onError({ view: TransferView.Error, errors: [e] })
     }
+    setCurrentIbcStep(1)
 
     try {
       const res = await signer.execute(
@@ -266,15 +404,22 @@ export default function TransferForm({
         getProxySendIcsNft,
         'auto',
         memo,
-        [{
-          amount: '100',
-          denom: 'ustars',
-        }]
+        proxy_fee,
       );
       console.log('transferApproved getProxySendIcsNft res', res)
       if (res?.transactionHash) {
-        // TODO: Verify this! might need to watch for relayer needs
-        return onSuccess({ view: TransferView.Success, txHash: res?.transactionHash, data: res })
+        txns.push({
+          txHash: res?.transactionHash,
+          data: res,
+          type: 'send',
+        })
+        // // TODO: Verify this! might need to watch for relayer needs
+        // return onSuccess({
+        //   view: TransferView.Success,
+        //   txns,
+        // })
+        setCurrentIbcStep(2)
+        return loopListener()
       }
     } catch (e) {
       // display error UI
@@ -304,7 +449,6 @@ export default function TransferForm({
       const res = await signer.queryContractSmart(contractPort, queryICSBridgeProxy())
       if (res) proxy_addr = res
     } catch (e) {
-      // console.log('queryICSBridgeProxy e', e)
       // no proxy, just do basic
     }
     console.log('proxy_addr', proxy_addr)
@@ -316,7 +460,7 @@ export default function TransferForm({
   return (
     <div>
       
-      {currentIbcStep == 0 && (
+      {!showSteps && (
         <>
           <div className="relative mt-0 text-left sm:mt-0">
             <Dialog.Title as="div" className="text-2xl font-semibold leading-6 text-gray-100">
@@ -565,7 +709,7 @@ export default function TransferForm({
         </>
       )}
 
-      {currentIbcStep > 0 && (
+      {showSteps && (
         <TransferProgress setOpen={setOpen} imageUrl={imageUrl} currentSteps={currentSteps} />
       )}
 

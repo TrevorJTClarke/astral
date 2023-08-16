@@ -17,8 +17,6 @@ export default function TransferProgress({
   imageUrl,
   currentSteps,
 }: TransferProgressTypes) {
-  console.log('TransferProgress currentSteps', currentSteps);
-  
   return (
     <div className="relative mt-0 text-left sm:mt-0">
       <Dialog.Title as="div" className="text-2xl animate-pulse font-semibold leading-6 text-gray-100">
@@ -26,7 +24,7 @@ export default function TransferProgress({
 
         <div className="mt-2">
           <p className="text-sm text-gray-500">
-            Please be patient while your NFT travels across the interchain...
+            Complete the wallet actions & be patient while your NFT travels across the interchain...
           </p>
         </div>
       </Dialog.Title>

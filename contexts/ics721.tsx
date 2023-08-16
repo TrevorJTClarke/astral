@@ -104,6 +104,10 @@ export const queryNftOwnerTokensMsg = (owner: string) => {
   return { tokens: { owner } }
 }
 
+export const queryNftOwnerOfMsg = (token_id: string) => {
+  return { owner_of: { token_id } }
+}
+
 export const queryNftTokenInfoMsg = (token_id: string) => {
   return { all_nft_info: { token_id } }
 }
@@ -118,6 +122,22 @@ export const queryICSBridgeIncomingChannels = (start_after?: string, limit?: num
 
 export const queryICSBridgeOutgoingChannels = (start_after?: string, limit?: number) => {
   return { outgoing_channels: { start_after, limit } }
+}
+
+export const queryICSProxyConfig = () => {
+  return 'get_config'
+}
+
+export const queryICSProxyRateLimit = () => {
+  return 'get_rate_limit'
+}
+
+export const queryICSProxyChannelWhitelist = () => {
+  return 'get_channels_whitelist'
+}
+
+export const queryICSProxyCollectionWhitelist = () => {
+  return 'get_collections_whitelist'
 }
 
 // 30mins from now, in nanos

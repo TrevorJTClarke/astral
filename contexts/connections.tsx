@@ -221,3 +221,15 @@ export const isBridgeAddress = (addr: string): boolean => {
 
 	return isBridge
 }
+
+export const getDestChannelFromSrc = (src: NFTChannel | undefined): NFTChannel | undefined => {
+	if (!src) return;
+	let dest: NFTChannel | undefined;
+
+	connectionChannels.forEach(c => {
+		if (c.channel_a.chain_id === src.chain_id && c.channel_a.port === src.port) dest = c.channel_b
+		if (c.channel_b.chain_id === src.chain_id && c.channel_b.port === src.port) dest = c.channel_a
+	})
+
+	return dest
+}

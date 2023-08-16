@@ -37,6 +37,7 @@ export function TransferModal({
   const [selectedChannel, setSelectedChannel] = useState<NFTChannel | undefined>()
   const [currentIbcStep, setCurrentIbcStep] = useState(0)
   const [errors, setErrors] = useState([])
+  const [successMeta, setSuccessMeta] = useState({})
 
   const setReset = () => {
     console.log('setReset TODO:')
@@ -50,6 +51,7 @@ export function TransferModal({
   const onSuccessForm = (data: any) => {
     console.log('FORM onSuccessForm TODO:')
     checkAndSetView(data)
+    setSuccessMeta(data)
   }
   const onErrorForm = (data: any) => {
     console.log('FORM onErrorForm TODO:')
@@ -59,6 +61,7 @@ export function TransferModal({
   const onSuccessRelay = (data: any) => {
     console.log('RELAY onSuccessRelay TODO:')
     checkAndSetView(data)
+    setSuccessMeta(data)
   }
   const onErrorRelay = (data: any) => {
     console.log('RELAY onErrorRelay TODO:')
@@ -96,7 +99,7 @@ export function TransferModal({
         );
       case TransferView.Success:
         return (
-          <TransferSuccess imageUrl={imageUrl} nextUrlHref="" />
+          <TransferSuccess setOpen={setOpen} imageUrl={imageUrl} data={successMeta} />
         );
       case TransferView.SelfRelay:
         return (
@@ -111,7 +114,7 @@ export function TransferModal({
           />
         );
     }
-  }, [currentView]);
+  }, [currentView, imageUrl]);
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>

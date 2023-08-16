@@ -58,7 +58,7 @@ export function ResolveCosmosNames({ address, len }) {
       // For ICNS
       let name
       if (res.names || res.primary_name) name =`${res.primary_name || res.names[0]}`
-      else name = res // stargaze
+      else name = `${res}.stars` // stargaze
       if (name) {
         resolvedCache[address] = name
         setResolvedName(name)
