@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate"
-import { toBase64, toUtf8 } from "@cosmjs/encoding";
+import { fromBech32, toBase64, toUtf8 } from "@cosmjs/encoding";
 import {
   availableNetworks,
   getBridgeContractsForChainId,
@@ -21,6 +21,19 @@ export function parseClassId(classId: string): string[][] {
   }
 
   return pairs;
+}
+
+export function isValidAddress(input: string, bech32_prefix?: string): boolean {
+  if (!bech32_prefix) return input.length === 44
+  try {
+    const { prefix, data } = fromBech32(input);
+    if (prefix !== bech32_prefix) {
+      return false;
+    }
+    return data.length === 20;
+  } catch {
+    return false;
+  }
 }
 
 export interface IBCTransferMsg {

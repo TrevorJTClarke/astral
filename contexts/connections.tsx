@@ -144,16 +144,28 @@ export const testnetConnections: NFTConnection[] = [
 	// 		channel: "channel-298",
 	// 	},
 	// },
+	// {
+	// 	channel_a: {
+	// 		chain_id: "elgafar-1",
+	// 		port: "wasm.stars166xr8hy2t6tmzufnjpc6psnm3apgdk8lkayksu4qg4nxkdwr3gvs98wh7h",
+	// 		channel: "channel-515",
+	// 	},
+	// 	channel_b: {
+	// 		chain_id: "uni-6",
+	// 		port: "wasm.juno1wk9te824s2as29qntdxtcs6fn8y350g6exuw7hldmrrwze6y6ugse8ulfa",
+	// 		channel: "channel-583",
+	// 	},
+	// },
 	{
 		channel_a: {
 			chain_id: "elgafar-1",
-			port: "wasm.stars166xr8hy2t6tmzufnjpc6psnm3apgdk8lkayksu4qg4nxkdwr3gvs98wh7h",
-			channel: "channel-515",
+			port: "wasm.stars1ytu7kwcmkn0qhm2r229d3zdhzuscekae8xncddy34pzyz9956jaq8auqn6",
+			channel: "channel-524",
 		},
 		channel_b: {
 			chain_id: "uni-6",
-			port: "wasm.juno1wk9te824s2as29qntdxtcs6fn8y350g6exuw7hldmrrwze6y6ugse8ulfa",
-			channel: "channel-583",
+			port: "wasm.juno1dk49cyz7q7vr3san6l955pkd9uf8j2c2gkfgjyvx8tdfuplws98qfl556k",
+			channel: "channel-591",
 		},
 	},
 ]

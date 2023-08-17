@@ -33,6 +33,7 @@ import {
   getMsgProxySendIcsNft,
   getMsgSendIcsNft,
   queryICSProxyConfig,
+  isValidAddress,
 } from '../../contexts/ics721'
 import {
   classNames,
@@ -82,6 +83,7 @@ export default function TransferForm({
   const [currentSteps, setCurrentSteps] = useState(allSteps);
   const [currentIbcStep, setCurrentIbcStep] = useState(0);
   const [receiver, setReceiver] = useState('');
+  const [receiverValid, setReceiverValid] = useState(true);
   const [requiresApproval, setRequiresApproval] = useState(false);
 
   // keep track of confirmations
@@ -102,6 +104,15 @@ export default function TransferForm({
       }
     }
   }, [query.collection]);
+
+  useEffect(() => {
+    // use expected prefix
+    const dest = getDestChannelFromSrc(selectedChannel)
+    const chain = dest?.port ? getChainForAddress(dest?.port.split('.')[1]) : null
+    console.log('chain', chain, receiver);
+    console.log('chain', isValidAddress(receiver, chain?.bech32_prefix));
+    setReceiverValid(isValidAddress(receiver, chain?.bech32_prefix))
+  }, [receiver, selectedChannel])
 
   useEffect(() => {
     allSteps.map(s => {
@@ -179,6 +190,7 @@ export default function TransferForm({
     if (!dest) return
     // get bridge contract & class_id
     const destBridgeContractAddr = dest.port.split('.')[1]
+    // TODO: Check this is working right!!
     const classId = `${dest.port}/${dest.channel}/${nftContractAddr}`
     console.log('destBridgeContractAddr', destBridgeContractAddr)
     console.log('classId', classId)
@@ -189,7 +201,7 @@ export default function TransferForm({
     const confirmReceived = async () => {
       // Check maximum times, error if exceeds max timeout (potentially prompt self-relay)
       if (loopIndex > loopMaxCalls) {
-        return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network."] })
+        return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network. It's still possible the transfer was successful. Please refresh your collection page before trying another transfer."] })
       }
       // If no destContractAddr, sleep 500, recurse
       if (!destContractAddr) {
@@ -219,11 +231,12 @@ export default function TransferForm({
       if (destContractAddr && !ownerFound) {
         // Query the dest contract for NFT ownership, if its not null, transfer successful
         try {
-          const res = await client.queryContractSmart(destContractAddr, queryNftOwnerOfMsg(classId))
+          const res = await client.queryContractSmart(destContractAddr, queryNftOwnerOfMsg(`${query.tokenId}`))
           console.log('queryNftOwnerOfMsg res', res)
           if (res && res.owner) ownerFound = true
         } catch (e) {
           // quiet
+          console.log('queryNftOwnerOfMsg ERRRRRR', destContractAddr, queryNftOwnerOfMsg(`${query.tokenId}`) , e)
         }
         console.log('CHECKING ownerFound', loopIndex)
         if (!ownerFound) {
@@ -468,7 +481,7 @@ export default function TransferForm({
 
               <div className="mt-2">
                 <p className="text-sm text-gray-500">
-                  Move an NFT to any recipient on any network.
+                  Move an NFT to any recipient across the interchain.
                 </p>
               </div>
             </Dialog.Title>
@@ -578,7 +591,10 @@ export default function TransferForm({
                   Recipient
                 </label>
                 <div className="mt-2">
-                  <div className="flex rounded-md bg-white/5 ring-1 ring-inset ring-white/10 focus-within:ring-2 focus-within:ring-inset focus-within:ring-pink-500">
+                  <div className={[
+                    'flex rounded-md bg-white/5 ring-1 ring-inset ring-white/10 focus-within:ring-2 focus-within:ring-inset',
+                    receiverValid == false && receiver.length > 0 ? 'focus-within:ring-red-500' : 'focus-within:ring-green-500',
+                  ]}>
                     <input
                       type="text"
                       name="recipient"
@@ -589,6 +605,10 @@ export default function TransferForm({
                       onChange={(e) => setReceiver(e.target.value)}
                     />
                   </div>
+
+                  {receiverValid == false && receiver.length > 2 && (
+                    <p className="text-red-600 font-bold mt-2 text-sm">Invalid Address! Please fix before you can proceed</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -692,15 +712,20 @@ export default function TransferForm({
 
             <div className="mt-8 px-3 py-2 flex justify-between text-sm text-gray-400 rounded-xl border border-1 border-gray-800">
               <p>Estimated Time</p>
-              <p>45 seconds</p>
+              <p>~45 seconds</p>
             </div>
 
           </div>
           <div className="mt-12 sm:mt-6 md:mt-12 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-4">
             <button
               type="button"
-              className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
+              className={[
+                ' transition-all inline-flex w-full justify-center rounded-md px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:col-start-2 ',
+                receiver.length < 40 ? ' cursor-not-allowed pointer-events-none ' : ' ',
+                receiverValid == true && receiver.length > 40 ? ' bg-pink-600 hover:bg-pink-600/80 focus-visible:outline-pink-600 ' : ' opacity-50 bg-gray-600 focus-visible:outline-gray-600 ',
+              ].join()}
               onClick={startTransfer}
+              disabled={receiverValid == false && receiver.length > 2}
             >
               Send
               <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
