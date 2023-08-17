@@ -9,11 +9,11 @@ export const navItems: NavProps[] = [
     title: 'My NFTs',
     href: '/my-nfts'
   },
-  {
-    // For bridging (launching) a collection on another chain, provisioning the channel/connections for a classId
-    title: 'Tools',
-    href: '/tools'
-  },
+  // {
+  //   // For bridging (launching) a collection on another chain, provisioning the channel/connections for a classId
+  //   title: 'Tools',
+  //   href: '/tools'
+  // },
 ];
 
 export const Header = () => {

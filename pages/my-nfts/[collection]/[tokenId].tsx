@@ -74,17 +74,20 @@ export default function NftDetail() {
 
   const getAllInfoCosmos = async () => {
     if (!contractsAddress || !currentChainName) return;
-    console.log('getAllInfoCosmos HEREEE----------------');
-    
 
     try {
       const p = []
       const repo = manager.getWalletRepo(currentChainName)
       const cosmWasmClient = await repo.getCosmWasmClient();
-      console.log('cosmWasmClient', cosmWasmClient)
-      const nftInfo = await cosmWasmClient.queryContractSmart(contractsAddress, { all_nft_info: { token_id: `${query.tokenId}` || '' } })
-      console.log('nftInfo', nftInfo)
-      setTokenUri(nftInfo)
+      try {
+        const nftInfo = await cosmWasmClient.queryContractSmart(contractsAddress, { all_nft_info: { token_id: `${query.tokenId}` || '' } })
+        setTokenUri(nftInfo)
+      } catch (e) {
+        // if this has an error, we really can't get more meaningful data
+        setHasData(false)
+        setIsLoading(false)
+        return;
+      }
 
       p.push(cosmWasmClient.queryContractSmart(contractsAddress, { contract_info: {} }))
       p.push(cosmWasmClient.queryContractSmart(contractsAddress, { minter: {} }))
@@ -288,7 +291,7 @@ export default function NftDetail() {
     if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
     if (isEthereumAddress) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractsAddress]);
+  }, [contractsAddress, query]);
 
   useMemo(() => {
     if (!contractsAddress || !tokenUri) {

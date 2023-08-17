@@ -35,36 +35,39 @@ export function TransferModal({
   const [srcNetwork, setSrcNetwork] = useState<Chain | undefined>()
   const [destNetwork, setDestNetwork] = useState<Chain | undefined>()
   const [selectedChannel, setSelectedChannel] = useState<NFTChannel | undefined>()
-  const [currentIbcStep, setCurrentIbcStep] = useState(0)
   const [errors, setErrors] = useState([])
   const [successMeta, setSuccessMeta] = useState({})
+  const [canSelfRelay, setCanSelfRelay] = useState(false)
 
   const setReset = () => {
-    console.log('setReset TODO:')
     setCurrentView(TransferView.TransferForm)
+    setErrors([])
+  }
+  const startSelfRelay = () => {
+    console.log('startSelfRelay TODO:')
+    setCurrentView(TransferView.SelfRelay)
     setErrors([])
   }
   const checkAndSetView = (data) => {
     if (typeof data.view !== 'undefined') setCurrentView(data.view)
-    console.log('checkAndSetView data:', data)
   }
   const onSuccessForm = (data: any) => {
-    console.log('FORM onSuccessForm TODO:')
     checkAndSetView(data)
     setSuccessMeta(data)
   }
   const onErrorForm = (data: any) => {
-    console.log('FORM onErrorForm TODO:')
     checkAndSetView(data)
+    if (data.srcNetwork) setSrcNetwork(data.srcNetwork)
+    if (data.destNetwork) setDestNetwork(data.destNetwork)
+    if (data.selectedChannel) setSelectedChannel(data.selectedChannel)
+    if (data.canSelfRelay) setCanSelfRelay(data.canSelfRelay)
     if (data.errors) setErrors(data.errors)
   }
   const onSuccessRelay = (data: any) => {
-    console.log('RELAY onSuccessRelay TODO:')
     checkAndSetView(data)
     setSuccessMeta(data)
   }
   const onErrorRelay = (data: any) => {
-    console.log('RELAY onErrorRelay TODO:')
     checkAndSetView(data)
     if (data.errors) setErrors(data.errors)
   }
@@ -82,7 +85,14 @@ export function TransferModal({
     switch (currentView) {
       case TransferView.Error:
         return (
-          <TransferError setOpen={setOpen} setReset={setReset} imageUrl={imageUrl} errors={errors} />
+          <TransferError
+            setOpen={setOpen}
+            setReset={setReset}
+            startSelfRelay={startSelfRelay}
+            imageUrl={imageUrl}
+            errors={errors}
+            canSelfRelay={canSelfRelay}
+          />
         );
       case TransferView.TransferForm:
         return (

@@ -79,6 +79,7 @@ const clientEthereum = new ApolloClient({
 const clients: any = {}
 
 export default function MyNfts() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingProviders, setIsLoadingProviders] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
@@ -231,6 +232,8 @@ export default function MyNfts() {
   }
 
   const getData = async () => {
+    console.log('GET DATA');
+    
     setIsLoading(true);
     await Promise.all([getOwnedNFTsStargaze(), getOwnedNFTsEth()]);
     setIsLoading(false);
@@ -265,21 +268,25 @@ export default function MyNfts() {
   }, [ownedTokensEthereumQuery.data]);
   
   useEffect(() => {
+    console.log('!isAuthed', !isAuthed);
+    console.log('isLoadingProviders', isLoadingProviders);
     if (!isAuthed) return;
     if (isLoadingProviders) return;
+    console.log('ARRIVED')
     getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoadingProviders, isAuthed]);
+  }, [isLoadingProviders, isAuthed, ownerAddresses]);
 
   // For Cosmos
   useEffect(() => {
     // Need to check at least 1 chain is authed
-    setIsAuthed(typeof address !== 'undefined')
+    if (!isAuthed && isAuthed !== (typeof address !== 'undefined')) setIsAuthed(typeof address !== 'undefined')
     if (!address) {
       setIsLoading(false)
       return;
     }
     (async () => {
+      setIsLoading(true)
       setIsLoadingProviders(true)
       for await (const chain of selectedChains) {
         if (!chain.selected) ownerAddresses[chain.chain_id] = []
@@ -293,22 +300,24 @@ export default function MyNfts() {
           clients[chain.chain_id] = await repo.getCosmWasmClient()
         }
       }
+      
       setOwnerAddresses(ownerAddresses)
       setIsLoadingProviders(false)
     })();
  
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]);
+  }, [address, router]);
 
   // For Ethereum
   useEffect(() => {
     // Need to check at least 1 chain is authed
-    setIsAuthed(typeof ethAccount.address !== 'undefined')
+    if (!isAuthed && isAuthed !== (typeof ethAccount.address !== 'undefined')) setIsAuthed(typeof ethAccount.address !== 'undefined')
     if (!ethAccount.address) {
       setIsLoading(false)
       return;
     }
     (async () => {
+      setIsLoading(true)
       setIsLoadingProviders(true)
       setOwnerAddresses(prev => {
         const n = {}
@@ -318,7 +327,7 @@ export default function MyNfts() {
       setIsLoadingProviders(false)
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ethAccount.address]);
+  }, [ethAccount.address, router]);
 
   if (!selectedChains.length) setSelectedChains(defaultSelectedNetworks())
 
@@ -447,17 +456,17 @@ export default function MyNfts() {
         </div>
       </div>
 
-      {(isLoading && isAuthed) && (<div className="relative mx-auto mb-24 text-center text-white">
+      {((isLoading || isLoadingProviders) && isAuthed) && (<div className="relative mx-auto mb-24 text-center text-white">
         <Loader />
         <h2 className="text-2xl animate-pulse">Loading NFTs...</h2>
       </div>)}
 
-      {(!isLoading && !isAuthed) && (<div className="my-24 mx-auto text-center text-white">
+      {(!isLoading && !isLoadingProviders && !isAuthed) && (<div className="my-24 mx-auto text-center text-white">
         <h2 className="text-xl mb-4">No Account Logged In!</h2>
         <p className="text-md text-gray-500 mt-4">Please connect your wallet above!</p>
       </div>)}
 
-      {(!isLoading && isAuthed && !hasData) && (<div className="flex flex-col my-24 mx-auto text-center text-white">
+      {(!isLoading && !isLoadingProviders && isAuthed && !hasData) && (<div className="flex flex-col my-24 mx-auto text-center text-white">
         <h2 className="text-xl mb-4">No NFTs Found!</h2>
         <p className="text-md text-gray-500 mt-4">Looks like you don&apos;t have any NFTs yet, go get some on:</p>
         <div className="flex max-w-1/2 mx-auto">
@@ -471,7 +480,7 @@ export default function MyNfts() {
         </div>
       </div>)}
 
-      {(!isLoading && isAuthed && hasData) && (
+      {(!isLoading && !isLoadingProviders && isAuthed && hasData) && (
         <div className="relative z-10 px-4 pt-4 sm:mx-8 sm:pt-8 md:px-0">
           <div className={[
             activeTab == 1 ? ' grid grid-cols-2 gap-4 lg:grid-cols-4 ' : ' ',

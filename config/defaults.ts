@@ -83,6 +83,31 @@ export const getChainAssets = (chain: Chain): AssetList => {
   ) as AssetList;
 }
 
+export const getExplorerFromTxData = (data: any): any => {
+  if (!data || !data.events || data.events.length < 1) return
+  let chainAddress
+
+  // check the tx logs for any address we can pull chain_id from bech32
+  data.events.forEach(e => {
+    if (e.type === 'wasm') {
+      e.attributes.forEach(a => {
+        if (a.key === '_contract_address') chainAddress = a.value
+        if (a.key === 'sender' && !chainAddress) chainAddress = a.value
+      })
+    }
+  })
+  if (!chainAddress) return;
+
+  // get the explorer link from chain details (if any)
+  const chain = getChainForAddress(chainAddress)
+  return chain?.explorers.length > 0 ? chain.explorers[0] : null
+}
+
+// tx_page: 'https://explorer.8ball.info/8ball/tx/${txHash}'
+export const getExplorerUrlForTx = (tx_page: string, txHash: string): string => {
+  return `${tx_page}`.replace('${txHash}', txHash)
+}
+
 export function getLogFromError(str) {
   const rgx = /log:(?:[a-zA-Z ])+/g
   const found = rgx.exec(`${str}`.toLowerCase())

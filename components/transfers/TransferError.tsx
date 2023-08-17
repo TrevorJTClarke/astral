@@ -13,15 +13,19 @@ import {
 export interface TransferErrorsTypes {
   setOpen: Dispatch <boolean>
   setReset: Dispatch <any>
+  startSelfRelay: Dispatch <any>
   imageUrl?: string
   errors: any[]
+  canSelfRelay?: boolean
 }
 
 export default function TransferError({
   setOpen,
   setReset,
+  startSelfRelay,
   imageUrl,
   errors,
+  canSelfRelay,
 }: TransferErrorsTypes) {
   return (
     <div className="relative mt-0 text-left sm:mt-0 text-white">
@@ -65,13 +69,24 @@ export default function TransferError({
       </div>
 
       <div className="mt-12 sm:mt-6 md:mt-12 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-4">
-        <button
-          type="button"
-          className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
-          onClick={() => setReset()}
-        >
-          Try Again
-        </button>
+        {canSelfRelay && (
+          <button
+            type="button"
+            className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
+            onClick={() => startSelfRelay()}
+          >
+            Start Self-Relay
+          </button>
+        )}
+        {!canSelfRelay && (
+          <button
+            type="button"
+            className="inline-flex w-full justify-center rounded-md bg-pink-600 hover:bg-pink-600/80 px-8 py-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600 sm:col-start-2"
+            onClick={() => setReset()}
+          >
+            Try Again
+          </button>
+        )}
         <button
           type="button"
           className="mt-3 inline-flex w-full justify-center rounded-md bg-transparent opacity-70 hover:opacity-95 px-8 py-4 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-gray-300 sm:col-start-1 sm:mt-0"

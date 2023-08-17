@@ -190,19 +190,28 @@ export default function TransferForm({
     if (!dest) return
     // get bridge contract & class_id
     const destBridgeContractAddr = dest.port.split('.')[1]
-    // TODO: Check this is working right!!
     const classId = `${dest.port}/${dest.channel}/${nftContractAddr}`
-    console.log('destBridgeContractAddr', destBridgeContractAddr)
-    console.log('classId', classId)
-
     const loopInterval = 500
-    const loopMaxCalls = 120
+    const loopMaxCalls = 60 // (~30 seconds)
     let loopIndex = 0
+
     const confirmReceived = async () => {
       // Check maximum times, error if exceeds max timeout (potentially prompt self-relay)
       if (loopIndex > loopMaxCalls) {
+        // If no contract addr, show the self-relay option
+        if (!destContractAddr) return onError({
+          view: TransferView.Error,
+          canSelfRelay: true,
+          srcNetwork,
+          destNetwork,
+          selectedChannel,
+          errors: ["IBC Transfer was not picked up by relayer network. You can do a self-relay to complete the transfer or cancel the transfer by waiting for the timeout."]
+        })
+
+        // If we have contract addr but can't get owner for some reason:
         return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network. It's still possible the transfer was successful. Please refresh your collection page before trying another transfer."] })
       }
+      // TODO: Assess for back-transfers
       // If no destContractAddr, sleep 500, recurse
       if (!destContractAddr) {
         // request the NFT contract on the dest chain, which confirms its existence and also gives us new link ot redirect user
@@ -251,7 +260,7 @@ export default function TransferForm({
       return onSuccess({
         view: TransferView.Success,
         txns,
-        nextUrl: `/${destContractAddr}/${query.tokenId}`
+        nextUrl: `/my-nfts/${destContractAddr}/${query.tokenId}`
       })
     }
 
@@ -351,13 +360,6 @@ export default function TransferForm({
 
   // needs-approval flow
   const transferApproved = async (signer, senderAddr, proxy_addr) => {
-    // allSteps.map(s => {
-    //   s.status = 'upcoming'
-    //   return s
-    // })
-    // allSteps.unshift(approveStep)
-    // console.log('allSteps', allSteps, imageUrl);
-    // setCurrentSteps(allSteps)
     setRequiresApproval(true)
     setShowSteps(true)
     setCurrentIbcStep(0)
@@ -384,8 +386,6 @@ export default function TransferForm({
       token_id: `${query.tokenId}`,
       receiver,
     })
-    console.log('msgApproveProxy', msgApproveProxy);
-    console.log('getProxySendIcsNft', getProxySendIcsNft)
 
     try {
       const res = await signer.execute(
@@ -395,7 +395,6 @@ export default function TransferForm({
         'auto',
         memo
       );
-      console.log('transferApproved msgApproveProxy res', res)
       if (res?.transactionHash) {
         txns.push({
           txHash: res?.transactionHash,
@@ -404,8 +403,9 @@ export default function TransferForm({
         })
       }
     } catch (e) {
+      console.log('approval e',e);
+      
       // display error UI
-      console.error('transferApproved e', e)
       return onError({ view: TransferView.Error, errors: [e] })
     }
     setCurrentIbcStep(1)
@@ -419,7 +419,6 @@ export default function TransferForm({
         memo,
         proxy_fee,
       );
-      console.log('transferApproved getProxySendIcsNft res', res)
       if (res?.transactionHash) {
         txns.push({
           txHash: res?.transactionHash,
@@ -436,7 +435,6 @@ export default function TransferForm({
       }
     } catch (e) {
       // display error UI
-      console.error('transferApproved e', e)
       onError({ view: TransferView.Error, errors: [e] })
     }
   }

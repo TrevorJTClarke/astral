@@ -6,6 +6,8 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline'
 import NftImage from '../nft-image'
+import { getExplorerFromTxData, getExplorerUrlForTx } from '../../config'
+import React from 'react';
 
 export interface TransferSuccessType {
   setOpen: Dispatch<boolean>
@@ -29,7 +31,11 @@ export default function TransferSuccess({
     router.replace(`/my-nfts`)
   }
 
-  // TODO: Get txHash explorer href!!!
+  const getExplorerUrl = (tx) => {
+    const explorer = getExplorerFromTxData(tx.data)
+    if (!explorer) return;
+    return getExplorerUrlForTx(explorer.tx_page, tx.txHash)
+  }
 
   const { txns } = data
 
@@ -46,7 +52,7 @@ export default function TransferSuccess({
       </Dialog.Title>
 
       <div className="flex justify-start gap-16 relative mx-auto mt-8">
-        <NftImage className="min-h-[250px] min-w-[250px]" uri={imageUrl} />
+        <NftImage className="min-h-[250px] min-w-[250px]" uri={imageUrl || ''} />
 
         {txns && txns.length > 0 && (
           <div className="my-auto">
@@ -63,7 +69,7 @@ export default function TransferSuccess({
                     {tx.type === 'direct' && (
                       <span>{idx + 1}. Send NFT completed.</span>
                     )}
-                    <br /><a className="text-sm text-pink-300 group-hover:text-pink-700 underline" title={tx.txHash} href="">View transaction receipt 👉</a>
+                    <br /><a className="text-sm text-pink-300 group-hover:text-pink-700 underline" title={tx.txHash} href={getExplorerUrl(tx)}>View transaction receipt 👉</a>
                   </p>
                 </li>
               ))}
