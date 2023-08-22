@@ -81,7 +81,7 @@ const clients: any = {}
 export default function MyNfts() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
   const [activeTab, setActiveTab] = useState(2)
   const [hasData, setHasData] = useState(false);

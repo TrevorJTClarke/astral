@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from 'next/router';
 import { useChain, useManager } from '@cosmos-kit/react';
+import { useAccount } from 'wagmi'
 import { useQuery, useLazyQuery, useApolloClient, ApolloProvider, ApolloClient, InMemoryCache } from '@apollo/client';
 import { AllNftInfoResponse } from "stargazejs/types/codegen/SG721Base.types";
 import Loader from '../../../components/loader'
@@ -17,6 +18,8 @@ import {
   XMarkIcon,
   ChevronUpIcon,
   ShoppingBagIcon,
+  LockClosedIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline'
 import {
   TData,
@@ -43,7 +46,12 @@ import {
 import {
   parseClassId,
   queryNftContractMsg,
+  queryICSBridgeProxy,
+  queryICSProxyConfig,
+  queryICSProxyCollectionWhitelist,
 } from '../../../contexts/ics721'
+import React from "react";
+import Link from "next/link";
 
 const apolloUriEthereum = process.env.NEXT_PUBLIC_APOLLO_URI_ETHEREUM || ''
 const clientEthereum = new ApolloClient({
@@ -66,8 +74,15 @@ export default function NftDetail() {
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const isEthereumAddress = contractsAddress?.startsWith(ethereummainnet.bech32_prefix)
 
+  const [isOwner, setIsOwner] = useState(false)
+  // When the NFT proxy requires whitelist & this collection is not part of the whitelisted addresses
+  const [isLocked, setIsLocked] = useState(false)
+  // When the owner of the NFT matches an ICS721 bridge
+  const [isEscrowed, setIsEscrowed] = useState(false)
+
   // dynamic wallet/client connections
   const manager = useManager()
+  const ethAccount = useAccount()
 
   // get contract address from url
   if (query.collection && !contractsAddress) setContractsAddress(`${query.collection}`);
@@ -76,17 +91,40 @@ export default function NftDetail() {
     if (!contractsAddress || !currentChainName) return;
 
     try {
-      const p = []
+      const p: Promise<any>[] = []
       const repo = manager.getWalletRepo(currentChainName)
-      const cosmWasmClient = await repo.getCosmWasmClient();
+      const cosmWasmClient = await repo.getCosmWasmClient()
+      let nftInfo
       try {
-        const nftInfo = await cosmWasmClient.queryContractSmart(contractsAddress, { all_nft_info: { token_id: `${query.tokenId}` || '' } })
+        nftInfo = await cosmWasmClient.queryContractSmart(contractsAddress, { all_nft_info: { token_id: `${query.tokenId}` || '' } })
         setTokenUri(nftInfo)
       } catch (e) {
         // if this has an error, we really can't get more meaningful data
         setHasData(false)
         setIsLoading(false)
         return;
+      }
+
+      if (nftInfo?.access?.owner) {
+        const owner = nftInfo.access.owner
+
+        // If owner matches any logged in wallet, im the owner
+        if (repo.current?.address && repo.current?.address === owner) setIsOwner(true)
+
+        if (owner.length > 44) {
+          // pre-known list check
+          if (isBridgeAddress(owner)) {
+            setIsEscrowed(true)
+          } else {
+            // dynamic list check, if we ping a known bridge-only method, its def escrowed
+            try {
+              const res = await cosmWasmClient.queryContractSmart(owner, { nft_contracts: {} })
+              if (res) setIsEscrowed(true)
+            } catch (e) {
+              // not escrowed
+            }
+          }
+        }
       }
 
       p.push(cosmWasmClient.queryContractSmart(contractsAddress, { contract_info: {} }))
@@ -134,6 +172,7 @@ export default function NftDetail() {
               is_origin: true,
             }
           } else {
+            // TODO: Process if locked!
             const bridge_addr = getContractFromPort(item[0])
             const chain = getChainForAddress(bridge_addr)
             let asset
@@ -163,6 +202,9 @@ export default function NftDetail() {
           }
         }))
         setProvenance(provenance)
+
+        // since provenance > 1, check if its locked or can be transferred.
+        if (provenance.length > 1) checkIfCosmosNftLocked(cosmWasmClient, getContractFromPort(icsList[0][0]))
       } else {
         const chain = getChainForAddress(contractsAddress)
         let asset
@@ -188,6 +230,36 @@ export default function NftDetail() {
       setHasData(false);
     }
   };
+
+  const checkIfCosmosNftLocked = async (client, bridge) => {
+    let proxy
+    let config: any = {}
+    // check if bridge has proxy
+    try {
+      const res = await client.queryContractSmart(bridge, queryICSBridgeProxy())
+      if (res) proxy = res
+    } catch (e) {
+      //
+    }
+
+    // check if proxy has WL collection settings in config (use get_config on proxy to check if WL, then check if collection is WL)
+    try {
+      const res = await client.queryContractSmart(proxy, queryICSProxyConfig())
+      if (res) config = res
+    } catch (e) {
+      //
+    }
+
+    if (!config.collections_whitelist_enabled) return;
+
+    // check if collection is WL in proxy
+    try {
+      const res = await client.queryContractSmart(proxy, queryICSProxyCollectionWhitelist())
+      if (res) setIsLocked(!res.includes(contractsAddress))
+    } catch (e) {
+      //
+    }
+  }
 
   const getAllInfoEthereum = async () => {
     getTokenEthereum({
@@ -237,7 +309,7 @@ export default function NftDetail() {
       console.log('token t', t);
 
       setToken(t)
-      setTokenUri({ access: { owner: token.owner }})
+      setTokenUri({ access: { owner: token.owner, approvals: [] }})
       setData({
         name: token.tokenContract.name,
         creator: token.mintInfo.originatorAddress,
@@ -253,6 +325,9 @@ export default function NftDetail() {
           is_origin: true,
         },
       ])
+
+      // If owner matches any logged in wallet, im the owner
+      if (token.owner === ethAccount?.address) setIsOwner(true)
 
       setHasData(true)
     }
@@ -274,15 +349,12 @@ export default function NftDetail() {
 
   useEffect(() => {
     if (!currentChainName) return;
-    console.log('currentChainName', currentChainName)
     if (currentChainName === ethereummainnet.chain_name) getEthereumData()
     else getCosmosData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChainName]);
   
   useMemo(() => {
-    console.log('HERE!!!!!', contractsAddress);
-    
     if (!contractsAddress) {
       setIsLoading(true);
       return;
@@ -291,7 +363,7 @@ export default function NftDetail() {
     if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
     if (isEthereumAddress) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractsAddress, query]);
+  }, [contractsAddress, query.collection]);
 
   useMemo(() => {
     if (!contractsAddress || !tokenUri) {
@@ -340,9 +412,21 @@ export default function NftDetail() {
         <h2 className="text-2xl animate-pulse">Loading...</h2>
       </div>)}
 
-      {(!isLoading && !hasData) && (<div className="my-24 mx-auto text-center text-white">
-        <h2 className="text-xl mb-4">No NFT Found!</h2>
-      </div>)}
+      {(!isLoading && !hasData) && (
+        <div className="grid min-h-full place-items-center px-6 py-24 sm:py-32 lg:px-8">
+          <div className="text-center">
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-100 sm:text-5xl">NFT not found</h1>
+            <p className="mt-6 text-base leading-7 text-gray-600">Sorry, we couldn’t find the NFT you’re looking for.</p>
+            <div className="mt-10 flex items-center justify-center gap-x-6">
+              <Link href="/my-nfts">
+                <div className="cursor-pointer rounded-md bg-pink-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600">
+                  View My NFTs
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {(!isLoading && hasData) && (
         <div>
@@ -370,14 +454,27 @@ export default function NftDetail() {
                   <span className="mr-2">Owner</span>
                   <AliasAddress>{tokenUri?.access?.owner || ''}</AliasAddress>
                 </p>
-                <div className="my-8">
+                <div className="flex my-8">
                   <div className="grid grid-cols-2 gap-4 sm:max-w-xs">
-                    <button disabled={isEthereumAddress} onClick={() => setTransferModalOpen(true)} className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
-                      <span>Transfer</span>
-                      <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
-                    </button>
+                    {isOwner && !isLocked && (
+                      <button disabled={isEthereumAddress} onClick={() => setTransferModalOpen(true)} className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-pink-600 text-white shadow-sm hover:bg-pink-700 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                        <span>Transfer</span>
+                        <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
+                      </button>
+                    )}
+                    {isOwner && isLocked && (
+                      <div className="relative cursor-help" title="This NFT is locked. Requires the bridge to whitelist the collection to enable interchain transfer.">
+                        <button disabled={isEthereumAddress} onClick={() => setTransferModalOpen(true)} className="flex-none cursor-help rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 bg-gray-600 text-white shadow-sm inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                          <span>Transfer</span>
+                          {/* <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" /> */}
+                          <div className="inline-flex my-auto ml-4 px-1 py-1 rounded-full text-white/75 hover:text-white bg-gray-700">
+                            <LockClosedIcon className="w-4 h-4" />
+                          </div>
+                        </button>
+                      </div>
+                    )}
                     {market && (
-                      <a href={marketLink} target="_blank" rel="noreferrer" className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-white border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                      <a href={marketLink} target="_blank" rel="noreferrer" className="flex-none rounded-lg border font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-transparent text-pink-500 shadow-sm hover:bg-pink hover:border-pink hover:text-pink-300 border-pink-500 inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
                         <span className="flex-none">View on Market</span>
                         <ShoppingBagIcon className="flex-shrink-0 w-5 h-5 ml-2 " />
                       </a>
@@ -386,11 +483,25 @@ export default function NftDetail() {
                 </div>
                 <div className="col-span-2 mt-8 rounded-lg border border-zinc-800">
                   <div className="border-b border-zinc-800 p-4 sm:flex sm:items-center">
-                    <div className="inline-flex flex-col justify-center sm:flex-auto sm:flex-row">
+                    <div className="flex w-full">
                       <h1 className="inline-flex flex-auto items-center gap-2 font-semibold">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-5"> <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"> </path> </svg>
                         <span>Provenance</span>
                       </h1>
+
+                      <div className="flex">
+                        {isEscrowed && (
+                          <div title="This NFT is escrowed by the bridge. The ownership of this NFT currently exists on a different chain." className="rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 disabled:cursor-not-allowed disabled:opacity-40 bg-blue-600/50 hover:bg-blue-600 cursor-help text-white shadow-sm  inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                            <span>Escrowed</span>
+                            <ArchiveBoxIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" />
+                          </div>
+                        )}
+                        {isLocked && (
+                          <div title="This NFT is locked. Requires the bridge to whitelist the collection to enable interchain transfer." className="inline-flex my-auto ml-4 px-3 py-2 rounded-full cursor-help text-white/75 hover:text-white bg-gray-600/20 hover:bg-gray-600/60">
+                            <LockClosedIcon className="w-5 h-5" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col overflow-hidden">
@@ -449,7 +560,6 @@ export default function NftDetail() {
         </div>
       )}
 
-      {/* <TransferModal imageUrl={imageUrl} isOpen={transferModalOpen} setOpen={setTransferModalOpen}></TransferModal> */}
       <TransferModal imageUrl={imageUrl} isOpen={transferModalOpen} setOpen={(b) => setTransferModalOpen(b)} />
 
     </div>

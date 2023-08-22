@@ -26,7 +26,10 @@ export default function TransferSuccess({
   const navigateToNft = async () => {
     setOpen(false)
     if (data.type === 'direct') return
-    if (data.nextUrl) return router.push(data.nextUrl)
+    if (data.nextUrl) {
+      await router.replace(data.nextUrl)
+      return router.reload()
+    }
     // fallback
     router.replace(`/my-nfts`)
   }

@@ -23,6 +23,16 @@ export function parseClassId(classId: string): string[][] {
   return pairs;
 }
 
+export function joinClassId(parsedId: string[][] | undefined): string | undefined {
+  if (!parsedId) return;
+  return parsedId.reduce((pre, cur) => pre.concat(cur)).join('/')
+}
+
+export function getAddrFromPort(port: string): string {
+  if (port.search('wasm') > -1) return port.split('.')[1]
+  return port
+}
+
 export function isValidAddress(input: string, bech32_prefix?: string): boolean {
   if (!bech32_prefix) return input.length === 44
   try {
@@ -103,6 +113,10 @@ export interface NftTokenData extends NftTokenContractData {
   id: string
   collection_addr?: string
   imageUrl?: string
+}
+
+export const queryNftClassIdMsg = (contract: string) => {
+  return { class_id: { contract } }
 }
 
 export const queryNftContractMsg = (class_id: string) => {

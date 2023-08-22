@@ -7,6 +7,7 @@ import type { Dispatch } from './TransferModal'
 import { Dialog, Disclosure, Listbox, Transition } from '@headlessui/react'
 import { useManager } from '@cosmos-kit/react';
 import { GasPrice, calculateFee, StdFee } from "@cosmjs/stargate"
+import { fromBech32 } from "@cosmjs/encoding"
 import {
   ArrowSmallRightIcon,
   CheckIcon,
@@ -27,6 +28,7 @@ import {
   queryICSBridgeProxy,
   queryICSBridgeIncomingChannels,
   queryICSBridgeOutgoingChannels,
+  queryNftClassIdMsg,
   queryNftContractMsg,
   queryNftOwnerOfMsg,
   getMsgApproveIcsProxy,
@@ -34,6 +36,9 @@ import {
   getMsgSendIcsNft,
   queryICSProxyConfig,
   isValidAddress,
+  parseClassId,
+  joinClassId,
+  getAddrFromPort,
 } from '../../contexts/ics721'
 import {
   classNames,
@@ -178,10 +183,41 @@ export default function TransferForm({
     return wallet.getCosmWasmClient()
   }
 
-  const loopListener = async () => {
+  const getNextClassId = async (client, dest) => {
+    if (!selectedChannel?.port) return;
+    const bridgeContractAddr = selectedChannel.port.split('.')[1]
+    let classId
+
+    try {
+      const res = await client.queryContractSmart(bridgeContractAddr, queryNftClassIdMsg(`${nftContractAddr}`))
+      if (res) classId = res
+    } catch (e) {
+      //
+    }
+    if (!classId) return;
+    let parsedId = parseClassId(classId)
+    console.log('parsedId', parsedId);
+    
+
+    // Detect if we're going forward or backward, so we can watch the destination chain for the correct classId & owner
+    if (parsedId.length <= 1) {
+      parsedId.unshift([dest.port, dest.channel])
+      return joinClassId(parsedId)
+    }
+    const destBech = fromBech32(getAddrFromPort(dest.port))
+    const srcBech = fromBech32(getAddrFromPort(parsedId[1][0]))
+    console.log('`${destBech.prefix}` === `${srcBech.prefix}`', `${destBech.prefix}`, `${srcBech.prefix}`);
+
+    if (`${destBech.prefix}` === `${srcBech.prefix}`) parsedId.shift()
+    else parsedId.unshift([dest.port, dest.channel])
+    console.log('parsedId', parsedId);
+    
+    return joinClassId(parsedId)
+  }
+
+  const loopListener = async (signerClient) => {
     // get the opposite channel client
     const client = await getDestClient()
-    console.log('loopListener client', client)
     if (!client) return
     let destContractAddr
     let ownerFound = false
@@ -190,10 +226,14 @@ export default function TransferForm({
     if (!dest) return
     // get bridge contract & class_id
     const destBridgeContractAddr = dest.port.split('.')[1]
-    const classId = `${dest.port}/${dest.channel}/${nftContractAddr}`
+    const classId = await getNextClassId(signerClient, dest)
     const loopInterval = 500
     const loopMaxCalls = 60 // (~30 seconds)
     let loopIndex = 0
+    console.log('destBridgeContractAddr, classId', destBridgeContractAddr, classId);
+    if (!classId) {
+      return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network. It's still possible the transfer was successful. Please refresh your collection page in a few minutes before trying another transfer."] })
+    }
 
     const confirmReceived = async () => {
       // Check maximum times, error if exceeds max timeout (potentially prompt self-relay)
@@ -220,7 +260,6 @@ export default function TransferForm({
           // returns contract: juno15khmwa5v7x6sfa5fp3yvhhh9j97enj3jrpdvdw2z8xfm2d6mppcqpqypw8
           // This is then the correct next_url: juno15khmwa5v7x6sfa5fp3yvhhh9j97enj3jrpdvdw2z8xfm2d6mppcqpqypw8/4079 where token_id doesnt change
           const res = await client.queryContractSmart(destBridgeContractAddr, queryNftContractMsg(classId))
-          console.log('destContractAddr res', res)
           if (res) {
             destContractAddr = res
             setCurrentIbcStep(currentSteps.length - 1)
@@ -229,7 +268,6 @@ export default function TransferForm({
           // quiet
         }
         if (!destContractAddr) {
-          console.log('CHECKING destContractAddr', loopIndex)
           loopIndex++
           return setTimeout(() => {
             confirmReceived()
@@ -241,13 +279,10 @@ export default function TransferForm({
         // Query the dest contract for NFT ownership, if its not null, transfer successful
         try {
           const res = await client.queryContractSmart(destContractAddr, queryNftOwnerOfMsg(`${query.tokenId}`))
-          console.log('queryNftOwnerOfMsg res', res)
           if (res && res.owner) ownerFound = true
         } catch (e) {
           // quiet
-          console.log('queryNftOwnerOfMsg ERRRRRR', destContractAddr, queryNftOwnerOfMsg(`${query.tokenId}`) , e)
         }
-        console.log('CHECKING ownerFound', loopIndex)
         if (!ownerFound) {
           loopIndex++
           return setTimeout(() => {
@@ -265,22 +300,6 @@ export default function TransferForm({
     }
 
     confirmReceived()
-  }
-
-  const startTransfer = async () => {
-    // TODO: REMOVE!!!!!!!!!! testing
-    // return onSuccess({ view: TransferView.Success, txHash: 'BE8B1CB4A385099E07FF7D31D9A6A105BE47711C0304CDE38D9D3154AD1CEB10' })
-    // return onError({ view: TransferView.Error, txHash: 'BE8B1CB4A385099E07FF7D31D9A6A105BE47711C0304CDE38D9D3154AD1CEB10', errors: ['Bad thing 1', 'wow, more bad things!'] })
-
-    // TODO: Form validation on address return onError({ view: TransferView.Error, errors: ['Wallet not active or not found'] })
-    // Validations:
-    // - Valid address
-    // - Address is not same as signer (thats a weird send)
-    // - Address is matching bech32 of dest
-
-    // TODO: bring back
-    // setCurrentView(TransferView.Sending)
-    await submitTransfer()
   }
 
   // same-chain NFT send
@@ -347,7 +366,7 @@ export default function TransferForm({
           data: res,
           type: 'send',
         })
-        return loopListener()
+        return loopListener(signer)
         // onSuccess({ view: TransferView.Success, txHash: res?.transactionHash })
       }
     } catch (e) {
@@ -372,7 +391,7 @@ export default function TransferForm({
     } catch (e) {
       // no proxy fee
     }
-    console.log('proxy_fee', proxy_fee);
+    console.log('proxy_fee', proxy_fee)
 
     // TODO: Check if approval exists???
 
@@ -431,7 +450,7 @@ export default function TransferForm({
         //   txns,
         // })
         setCurrentIbcStep(2)
-        return loopListener()
+        return loopListener(signer)
       }
     } catch (e) {
       // display error UI
@@ -462,7 +481,6 @@ export default function TransferForm({
     } catch (e) {
       // no proxy, just do basic
     }
-    console.log('proxy_addr', proxy_addr)
     
     if (proxy_addr) return transferApproved(signer, senderAddr, proxy_addr)
     return transferBasic(signer, senderAddr, contractPort)
@@ -722,7 +740,7 @@ export default function TransferForm({
                 receiver.length < 40 ? ' cursor-not-allowed pointer-events-none ' : ' ',
                 receiverValid == true && receiver.length > 40 ? ' bg-pink-600 hover:bg-pink-600/80 focus-visible:outline-pink-600 ' : ' opacity-50 bg-gray-600 focus-visible:outline-gray-600 ',
               ].join()}
-              onClick={startTransfer}
+              onClick={submitTransfer}
               disabled={receiverValid == false && receiver.length > 2}
             >
               Send
