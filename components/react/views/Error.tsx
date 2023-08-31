@@ -20,7 +20,7 @@ export const Error = ({
       <div className="flex flex-row items-center justify-between">
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onReturn}
         >
           <span className="sr-only">Return</span>
@@ -28,13 +28,13 @@ export const Error = ({
         </button>
         <Dialog.Title
           as="h3"
-          className="font-medium leading-6 text-center text-gray-900 dark:text-white"
+          className="font-medium leading-6 text-center text-white"
         >
           Error
         </Dialog.Title>
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onClose}
         >
           <span className="sr-only">Close</span>
@@ -49,8 +49,7 @@ export const Error = ({
             className="flex-shrink-0 w-16 h-16 aspect-1"
           />
         </div>
-        <p className="mt-3 font-medium text-black dark:text-white">An error has occured</p>
-        {/* <p className="mt-1 text-sm text-gray-500">Lorem ipsum dolor sit amet</p> */}
+        <p className="mt-3 font-medium text-white">An error has occured</p>
         <button
           className="rounded-lg bg-pink-600 hover:bg-pink-600/80 inline-flex justify-center items-center py-2.5 font-medium mt-4 text-white"
           onClick={onReconnect}

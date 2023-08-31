@@ -67,7 +67,8 @@ export const getHttpUrl = (ipfsLink: string | undefined) => {
   return `https://ipfs-gw.stargaze-apis.com/ipfs/${ipfsLink.slice(7)}`;
 };
 
-export const getChainForAddress = (address: string): Chain | undefined => {
+export const getChainForAddress = (address: string | undefined): Chain | undefined => {
+  if (!address) return
   if (address.startsWith(ethereummainnet.bech32_prefix)) return
   const { prefix } = fromBech32(address)
   return chains.find((chain) => chain.bech32_prefix === prefix && chain.network_type === networkType)

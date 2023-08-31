@@ -145,7 +145,8 @@ export default function MyNfts() {
     }
 
     const allNfts = await getNftOwnerTokens(clients, ownerAddresses)
-    const adjustedNfts: any[] = allNfts.map(nft => {
+    if (!allNfts.length) return;
+    const adjustedNfts: any[] = allNfts.filter(n => n == 'undefined').map(nft => {
       let n = { ...nft }
       n.chain = getChainForAddress(n.collection_addr)
       n.href = `my-nfts/${n.collection_addr}/${n.id}`
@@ -175,6 +176,7 @@ export default function MyNfts() {
     if (ownedTokensStargazeQuery?.data?.tokens?.tokens) {
       // adjust output for better UI facilitation
       const { tokens } = ownedTokensStargazeQuery.data.tokens
+      if (!tokens.length) return;
       const adjustedTokens: any[] = tokens.map(tkn => {
         let t = { ...tkn }
         t.chain = getChainForAddress(t.collectionAddr)
@@ -195,7 +197,7 @@ export default function MyNfts() {
     if (ownedTokensEthereumQuery?.data?.tokens?.nodes) {
       // adjust output for better UI facilitation
       const { nodes } = ownedTokensEthereumQuery.data.tokens
-      if (!nodes) return
+      if (!nodes.length) return
       const adjustedTokens: any[] = nodes.map(tkn => {
         let t = { ...tkn.token }
         t.chain = {
@@ -232,24 +234,28 @@ export default function MyNfts() {
   }
 
   const getData = async () => {
-    console.log('GET DATA');
-    
     setIsLoading(true);
     await Promise.all([getOwnedNFTsStargaze(), getOwnedNFTsEth()]);
     setIsLoading(false);
   };
 
   const filterNftsBySelectedChains = (nft: any) => {
+    if (!selectedChains.length || !nft?.chain?.chain_id) return 
     return selectedChains.filter(c => c.selected).map(c => c.chain_id).includes(nft.chain.chain_id)
   }
 
   const applyDedupeNfts = (newNfts: any[]) => {
     setNfts((prevNfts: any[]) => {
-      const dedupedNfts: any[] = prevNfts
+      const dedupedNfts: any[] = prevNfts || []
+      
+      if (!newNfts.length) {
+        if (prevNfts) setHasData(prevNfts.length > 0)
+        return dedupedNfts;
+      }
 
       newNfts.forEach((newTkn: any) => {
         let has = false
-        prevNfts.forEach(nft => {
+        if (prevNfts && prevNfts.length > 0) prevNfts.forEach(nft => {
           if (nft.collection_addr === newTkn.collection_addr && nft.token_id === newTkn.token_id) has = true
         })
         if (!has) dedupedNfts.push(newTkn)
@@ -268,11 +274,8 @@ export default function MyNfts() {
   }, [ownedTokensEthereumQuery.data]);
   
   useEffect(() => {
-    console.log('!isAuthed', !isAuthed);
-    console.log('isLoadingProviders', isLoadingProviders);
     if (!isAuthed) return;
     if (isLoadingProviders) return;
-    console.log('ARRIVED')
     getData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingProviders, isAuthed, ownerAddresses]);

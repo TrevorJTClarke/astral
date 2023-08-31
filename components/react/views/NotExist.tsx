@@ -21,7 +21,7 @@ export const NotExist = ({
       <div className="flex flex-row items-center justify-between">
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onReturn}
         >
           <span className="sr-only">Return</span>
@@ -29,13 +29,13 @@ export const NotExist = ({
         </button>
         <Dialog.Title
           as="h3"
-          className="font-medium leading-6 text-center text-gray-900 dark:text-white"
+          className="font-medium leading-6 text-center text-white"
         >
           {name}
         </Dialog.Title>
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onClose}
         >
           <span className="sr-only">Close</span>
@@ -48,10 +48,10 @@ export const NotExist = ({
           alt={name}
           className="flex-shrink-0 w-16 h-16 mx-auto aspect-1"
         />
-        <p className="mt-3 font-medium text-black dark:text-white">
+        <p className="mt-3 font-medium text-white">
           Install {name}
         </p>
-        <p className="mt-1 text-sm text-gray-500 dark:text-white/75">
+        <p className="mt-1 text-sm text-white/75">
           To connect your {name} wallet, install the browser extension.
         </p>
         <button

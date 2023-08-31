@@ -80,9 +80,9 @@ export default function Bridge() {
   // dynamic wallet/client connections
   const manager = useManager()
   const chainA = useChain(sgtn);
-  console.log('chainA', chainA);
+  // console.log('chainA', chainA);
   const chainB = useChain(jntn);
-  console.log('chainB', chainB);
+  // console.log('chainB', chainB);
 
   // TODO: Change to dynamic!!
   const aContractAddress = bridgeRegistry.stargaze.bridge

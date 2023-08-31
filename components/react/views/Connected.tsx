@@ -21,7 +21,7 @@ export const Address = ({ children: address }: { children: string }) => {
   const [copied, setCopied] = useState<boolean>(false);
   return (
     <button
-      className="inline-flex items-center justify-center px-6 py-1 mx-4 mb-4 space-x-2 text-sm text-gray-500 dark:text-white/75"
+      className="inline-flex items-center justify-center px-6 py-1 mx-4 mb-4 space-x-2 text-sm text-white/75"
       onClick={() => {
         copyToClipboard(address);
         setCopied(true);
@@ -32,9 +32,9 @@ export const Address = ({ children: address }: { children: string }) => {
     >
       <p>{truncate(address || '')}</p>
       {copied ? (
-        <CheckIcon className="w-3 h-3 text-gray-500 dark:text-white/75" />
+        <CheckIcon className="w-3 h-3 text-white/75" />
       ) : (
-        <ClipboardDocumentIcon className="w-3 h-3 text-gray-500 dark:text-white/75" />
+        <ClipboardDocumentIcon className="w-3 h-3 text-white/75" />
       )}
     </button>
   );
@@ -62,7 +62,7 @@ export const Connected = ({
       <div className="flex flex-row items-center justify-between">
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onReturn}
         >
           <span className="sr-only">Return</span>
@@ -70,13 +70,13 @@ export const Connected = ({
         </button>
         <Dialog.Title
           as="h3"
-          className="font-medium leading-6 text-center text-gray-900 dark:text-white"
+          className="font-medium leading-6 text-center text-white"
         >
           {name}
         </Dialog.Title>
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onClose}
         >
           <span className="sr-only">Close</span>
@@ -91,7 +91,7 @@ export const Connected = ({
               alt={name}
               className="flex-shrink-0 w-4 h-4 mt-0 aspect-1"
             />
-            <p className="mt-0 mb-0 text-lg font-medium text-black dark:text-white">
+            <p className="mt-0 mb-0 text-lg font-medium text-white">
               {username || ''}
             </p>
           </div>

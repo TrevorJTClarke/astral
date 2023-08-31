@@ -21,7 +21,7 @@ export const QRCode = ({
       <div className="flex flex-row items-center justify-between">
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onReturn}
         >
           <span className="sr-only">Return</span>
@@ -29,13 +29,13 @@ export const QRCode = ({
         </button>
         <Dialog.Title
           as="h3"
-          className="font-medium leading-6 text-center text-gray-900 dark:text-white"
+          className="font-medium leading-6 text-center text-white"
         >
           {name}
         </Dialog.Title>
         <button
           type="button"
-          className="p-2 text-black bg-white rounded-full hover:bg-gray-200 dark:text-white dark:bg-white/10 dark:hover:scale-105"
+          className="p-2 rounded-full text-white bg-white/10 hover:scale-105"
           onClick={onClose}
         >
           <span className="sr-only">Close</span>
@@ -50,7 +50,7 @@ export const QRCode = ({
             fgColor={'#000000'}
             level={'L'}
             includeMargin={false}
-            className="w-auto p-4 mx-auto border rounded-lg h-64 border-black/10 dark:border-white/10"
+            className="w-auto p-4 mx-auto border rounded-lg h-64 border-white/10"
           />
         </div>
       </div>
