@@ -192,6 +192,30 @@ export const testnetConnections: NFTConnection[] = [
 			channel: "channel-705",
 		},
 	},
+	{
+		channel_a: {
+			chain_id: "elgafar-1",
+			port: "wasm.stars165fr5j3ea0dk5yr5sr4h8uw76z5fd34lpnqc2x80ya9xkx9u0k3qjrqpzq",
+			channel: "channel-581",
+		},
+		channel_b: {
+			chain_id: "pisco-1",
+			port: "wasm.terra1luhy2ngj7y0lqy3vjek3xm777pywptzzea0sc5ymu4pmafjrn07s5rlmxt",
+			channel: "channel-345",
+		},
+	},
+	{
+		channel_a: {
+			chain_id: "pisco-1",
+			port: "wasm.terra1luhy2ngj7y0lqy3vjek3xm777pywptzzea0sc5ymu4pmafjrn07s5rlmxt",
+			channel: "channel-344",
+		},
+		channel_b: {
+			chain_id: "uni-6",
+			port: "wasm.juno1uvflayc34fs9r3tzcausztks2058ecpt5kqtzf3sz5kwnu7fjtfqn7zmtj",
+			channel: "channel-706",
+		},
+	},
 ]
 
 export const connections = {
