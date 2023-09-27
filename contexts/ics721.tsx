@@ -152,7 +152,7 @@ export const queryICSBridgeOutgoingChannels = (start_after?: string, limit?: num
 }
 
 export const queryICSProxyConfig = () => {
-  return 'get_config'
+  return { get_config: {} }
 }
 
 export const queryICSProxyRateLimit = () => {
@@ -160,7 +160,7 @@ export const queryICSProxyRateLimit = () => {
 }
 
 export const queryICSProxyChannelWhitelist = () => {
-  return 'get_channels_whitelist'
+  return { get_channels_whitelist: {} }
 }
 
 export const queryICSProxyCollectionWhitelist = () => {
