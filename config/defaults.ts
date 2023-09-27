@@ -61,6 +61,7 @@ export const toDisplayAmount = (amount: string, exponent: number) => {
   return new BigNumber(amount).shiftedBy(-exponent).decimalPlaces(2).toString();
 };
 
+// TODO: Whats the right way to do this?
 export const getHttpUrl = (ipfsLink: string | undefined) => {
   if (!ipfsLink || ipfsLink === 'undefined') return '';
   if (ipfsLink.startsWith('http')) return ipfsLink
