@@ -41,9 +41,10 @@ export function classNames(...classes: any[]) {
   return classes.filter(Boolean).join(' ')
 }
 
-export const networkType: string = process.env.NEXT_NETWORK_TYPE ?? 'testnet';;
-// export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargaze';;
-export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargazetestnet';;
+export const networkType: string = process.env.NEXT_NETWORK_TYPE ?? 'mainnet';;
+export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargaze';;
+// export const networkType: string = process.env.NEXT_NETWORK_TYPE ?? 'testnet';;
+// export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargazetestnet';;
 
 export const chainassets: AssetList = assets.find(
   (chain) => chain.chain_name === chainName
