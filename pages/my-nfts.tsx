@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from "react";
+import React, { Fragment, useState, useEffect } from "react";
 import { Dialog, Disclosure, Menu, Popover, Transition } from '@headlessui/react'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 import { useRouter } from 'next/router';
@@ -146,7 +146,7 @@ export default function MyNfts() {
 
     const allNfts = await getNftOwnerTokens(clients, ownerAddresses)
     if (!allNfts.length) return;
-    const adjustedNfts: any[] = allNfts.filter(n => n == 'undefined').map(nft => {
+    const adjustedNfts: any[] = allNfts.filter(n => n != 'undefined').map(nft => {
       let n = { ...nft }
       n.chain = getChainForAddress(n.collection_addr)
       n.href = `my-nfts/${n.collection_addr}/${n.id}`
@@ -288,6 +288,12 @@ export default function MyNfts() {
       setIsLoading(false)
       return;
     }
+    // reset owner holdings if watched address changes
+    if (!ownerAddresses[address]) {
+      setNfts([])
+      setHasData(false)
+    }
+
     (async () => {
       setIsLoading(true)
       setIsLoadingProviders(true)
@@ -323,7 +329,7 @@ export default function MyNfts() {
       setIsLoading(true)
       setIsLoadingProviders(true)
       setOwnerAddresses(prev => {
-        const n = {}
+        const n: any = {}
         n.ethereummainnet = [ethAccount.address]
         return { ...prev, ...n }
       })
@@ -372,7 +378,7 @@ export default function MyNfts() {
 
           <div className="flex shrink-0 items-center justify-end">
             <Menu as="div" className="relative text-left inline-block">
-              <Menu.Button className="flex-none items-center border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed disabled:opacity-40 border-black dark:border-white dark:hover:bg-zinc-900 inline-flex w-full justify-center rounded-md !border-zinc-800 bg-black/20 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75">
+              <Menu.Button className="flex-none items-center border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white dark:hover:bg-zinc-900 inline-flex w-full justify-center rounded-md !border-zinc-800 bg-black/20 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75">
                 Sort By: {activeSort}
                 <ChevronDownIcon className="m-auto ml-2 w-6 h-6" />
               </Menu.Button>
@@ -469,7 +475,7 @@ export default function MyNfts() {
         <p className="text-md text-gray-500 mt-4">Please connect your wallet above!</p>
       </div>)}
 
-      {(!isLoading && !isLoadingProviders && isAuthed && !hasData) && (<div className="flex flex-col my-24 mx-auto text-center text-white">
+      {(!isLoading && !isLoadingProviders && isAuthed && (nfts.filter(filterNftsBySelectedChains).filter(filterByInputText).length <= 0)) && (<div className="flex flex-col my-24 mx-auto text-center text-white">
         <h2 className="text-xl mb-4">No NFTs Found!</h2>
         <p className="text-md text-gray-500 mt-4">Looks like you don&apos;t have any NFTs yet, go get some on:</p>
         <div className="flex max-w-1/2 mx-auto">
@@ -483,13 +489,13 @@ export default function MyNfts() {
         </div>
       </div>)}
 
-      {(!isLoading && !isLoadingProviders && isAuthed && hasData) && (
+      {(!isLoading && !isLoadingProviders && isAuthed && (nfts.filter(filterNftsBySelectedChains).filter(filterByInputText).length > 0)) && (
         <div className="relative z-10 px-4 pt-4 sm:mx-8 sm:pt-8 md:px-0">
           <div className={[
             activeTab == 1 ? ' grid grid-cols-2 gap-4 lg:grid-cols-4 ' : ' ',
             activeTab == 2 ? ' grid grid-cols-3 gap-4 lg:grid-cols-5 ' : ' ',
             activeTab == 3 ? ' grid grid-cols-4 gap-4 lg:grid-cols-6 ' : ' ',
-          ]}>
+          ].join(' ')}>
             {nfts.filter(filterNftsBySelectedChains).filter(filterByInputText).sort(compareActiveSort).map((nft, idx) => (
               <div key={idx} className="group cursor-pointer relative h-full overflow-hidden bg-white transition-shadow divide-y rounded-lg shadow-sm divide-neutral-300 hover:shadow-md dark:divide-zinc-800 dark:bg-black group/card border border-zinc-800 focus-within:ring-2 focus-within:ring-pink-500 focus-within:ring-offset-2">
                 <Link className="z-[2] focus:outline-none" href={`${nft.href}`}>
