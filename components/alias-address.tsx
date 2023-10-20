@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import React from 'react';
 import { Square2StackIcon, CheckIcon } from '@heroicons/react/20/solid';
 import copyToClipboard from 'copy-to-clipboard';
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -59,7 +60,8 @@ export function ResolveCosmosNames({ address, len }) {
       let name
       if (res.names || res.primary_name) name =`${res.primary_name || res.names[0]}`
       else name = `${res}.stars` // stargaze
-      if (name) {
+      
+      if (name && name !== 'undefined') {
         resolvedCache[address] = name
         setResolvedName(name)
       }

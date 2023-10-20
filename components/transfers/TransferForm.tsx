@@ -105,19 +105,22 @@ export default function TransferForm({
       const srcChain = getChainForAddress(`${nftContractAddr}`)
       if (srcChain?.chain_id && isAvailableNetwork(srcChain.chain_id)) {
         setSrcNetwork(srcChain)
+        console.log('destNetwork', destNetwork);
+        
         if (!destNetwork) setDestNetwork(srcChain)
       }
     }
   }, [query.collection]);
 
   useEffect(() => {
-    // use expected prefix
-    const dest = getDestChannelFromSrc(selectedChannel)
-    const chain = dest?.port ? getChainForAddress(dest?.port.split('.')[1]) : null
-    console.log('chain', chain, receiver);
-    console.log('chain', isValidAddress(receiver, chain?.bech32_prefix));
+    // validate the matching networks
+    const receiverChain = getChainForAddress(receiver)
+    const chain = destNetwork
+
+    // Check the receiver & destination are same, if not, CHANGE?!
+    if (receiverChain?.chain_id != chain?.chain_id) return setReceiverValid(false)
     setReceiverValid(isValidAddress(receiver, chain?.bech32_prefix))
-  }, [receiver, selectedChannel])
+  }, [receiver, destNetwork])
 
   useEffect(() => {
     allSteps.map(s => {
@@ -136,21 +139,33 @@ export default function TransferForm({
 
   useEffect(() => {
     if (!srcNetwork?.chain_id) return;
+    // if network is SAME, no available channels :D
+    if (srcNetwork.chain_id === destNetwork?.chain_id) return setAvailableChannels([]);
+
     // filter to channels only for selected network and base network
     const chain_id = srcNetwork.chain_id
+    const dest_chain_id = destNetwork?.chain_id || chain_id
     const foundChannels: NFTChannelChain[] = []
 
-    // TODO: Filter to src + dest channels
     // TODO: dynamically get channels from RPC
     extendedChannels.forEach(channels => {
+      let hasBoth = 0
+      let channel
       Object.keys(channels).forEach((k: string) => {
-        if (chain_id === channels[k].chain_id) foundChannels.push(channels[k])
+        if (chain_id === channels[k].chain_id) {
+          channel = channels[k]
+          hasBoth += 1
+        }
+        if (dest_chain_id === channels[k].chain_id) hasBoth += 1
       })
+      if (hasBoth > 1 && channel) foundChannels.push(channel)
     })
-    console.log('TODO: srcNetwork, foundChannels', srcNetwork, foundChannels)
 
+    console.log('foundChannels', foundChannels);
+    
     setAvailableChannels(foundChannels)
-    if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
+    // TODO: FIX!
+    // if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
   }, [destNetwork]);
 
   const getSrcSigner = async () => {
@@ -623,7 +638,7 @@ export default function TransferForm({
                   </div>
 
                   {receiverValid == false && receiver.length > 2 && (
-                    <p className="text-red-600 font-bold mt-2 text-sm">Invalid Address! Please fix before you can proceed</p>
+                    <p className="text-red-600 font-bold mt-2 text-sm">Invalid Address! Please fix your address or change <strong>To</strong> network before you can proceed</p>
                   )}
                 </div>
               </div>

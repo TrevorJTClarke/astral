@@ -34,7 +34,7 @@ export function getAddrFromPort(port: string): string {
 }
 
 export function isValidAddress(input: string, bech32_prefix?: string): boolean {
-  if (!bech32_prefix) return input.length === 44
+  if (!bech32_prefix) return `${input}`.length === 44
   try {
     const { prefix, data } = fromBech32(input);
     if (prefix !== bech32_prefix) {
