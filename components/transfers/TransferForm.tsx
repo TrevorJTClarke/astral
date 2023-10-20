@@ -638,7 +638,7 @@ export default function TransferForm({
                   </div>
 
                   {receiverValid == false && receiver.length > 2 && (
-                    <p className="text-red-600 font-bold mt-2 text-sm">Invalid Address! Please fix your address or change "To" network before you can proceed</p>
+                    <p className="text-red-600 font-bold mt-2 text-sm">Invalid Address! Please fix your address or change <strong>To</strong> network before you can proceed</p>
                   )}
                 </div>
               </div>
