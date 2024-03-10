@@ -46,6 +46,10 @@ export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargaze';;
 // export const networkType: string = process.env.NEXT_NETWORK_TYPE ?? 'testnet';;
 // export const chainName = process.env.NEXT_PUBLIC_CHAIN ?? 'stargazetestnet';;
 
+export const excludedChainIds = ['columbus-5'];
+
+export const filteredChains = chains.filter(chain => chain.network_type === networkType && !excludedChainIds.includes(chain.chain_id));
+
 export const chainassets: AssetList = assets.find(
   (chain) => chain.chain_name === chainName
 ) as AssetList;
@@ -79,11 +83,11 @@ export const getChainForAddress = (address: string | undefined): Chain | undefin
   } catch (e) {
     return undefined
   }
-  return chains.find((chain) => chain.bech32_prefix === prefix && chain.network_type === networkType)
+  return filteredChains.find((chain) => chain.bech32_prefix === prefix && chain.network_type === networkType)
 }
 
 export const getChainByChainId = (chainId: string): Chain | undefined => {
-  return chains.find((chain) => chain.chain_id === chainId && chain.network_type === networkType)
+  return filteredChains.find((chain) => chain.chain_id === chainId && chain.network_type === networkType)
 }
 
 export const getChainAssets = (chain: Chain): AssetList => {
@@ -190,8 +194,8 @@ if (networkType === 'testnet') {
     chain_name: 'terra2',
     name: 'Talis Marketplace',
     logoPath: '/logos/talis.svg',
-    marketLink: 'https://talis.art/marketplace',
-    marketDetailLink: (address, tokenId) => `https://talis.art/nft/${tokenId}`,
+    marketLink: 'https://cosmos.talis.art/marketplace',
+    marketDetailLink: (address, tokenId) => `https://cosmos.talis.art/nft/${tokenId}`,
   })
 }
 

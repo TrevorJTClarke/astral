@@ -81,36 +81,36 @@ export const mainnetConnections: NFTConnection[] = [
 		channel_a: {
 			chain_id: "stargaze-1",
 			port: "wasm.stars1r0a8ygvnjfaegy4n5z9325e0ew9uy2s7rn4vt7qf4ltv49fj4tnsk6pvtv",
-			channel: "channel-213",
+			channel: "channel-243",
 		},
 		channel_b: {
 			chain_id: "juno-1",
 			port: "wasm.juno1kc0lcysppht7s8xl263q208u2t7epw5h3zvhyscsxjlz560yysmsrd8ydt",
-			channel: "channel-333",
+			channel: "channel-421",
 		},
 	},
 	{
 		channel_a: {
 			chain_id: "stargaze-1",
 			port: "wasm.stars1r0a8ygvnjfaegy4n5z9325e0ew9uy2s7rn4vt7qf4ltv49fj4tnsk6pvtv",
-			channel: "channel-209",
+			channel: "channel-282",
 		},
 		channel_b: {
 			chain_id: "phoenix-1",
 			port: "wasm.terra1ed3qw4y4ca3lpj82ugg2jqsjr9czd0yyldcpp5n5yd7hu6udqafslz0nmg",
-			channel: "channel-238",
+			channel: "channel-370",
 		},
 	},
 	{
 		channel_a: {
 			chain_id: "phoenix-1",
 			port: "wasm.terra1ed3qw4y4ca3lpj82ugg2jqsjr9czd0yyldcpp5n5yd7hu6udqafslz0nmg",
-			channel: "channel-240",
+			channel: "channel-326",
 		},
 		channel_b: {
 			chain_id: "juno-1",
 			port: "wasm.juno1kc0lcysppht7s8xl263q208u2t7epw5h3zvhyscsxjlz560yysmsrd8ydt",
-			channel: "channel-339",
+			channel: "channel-463",
 		},
 	},
 ]
@@ -363,8 +363,8 @@ export const getDestChannelFromSrc = (src: NFTChannel | undefined): NFTChannel |
 
 	connectionChannels.forEach(c => {
 		if (dest) return;
-		if (c.channel_a.chain_id === src.chain_id && c.channel_a.port === src.port) dest = c.channel_b
-		if (c.channel_b.chain_id === src.chain_id && c.channel_b.port === src.port) dest = c.channel_a
+		if (c.channel_a.chain_id === src.chain_id && c.channel_a.port === src.port && c.channel_a.channel === src.channel) dest = c.channel_b
+		if (c.channel_b.chain_id === src.chain_id && c.channel_b.port === src.port && c.channel_b.channel === src.channel) dest = c.channel_a
 	})
 
 	return dest

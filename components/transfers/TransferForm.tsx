@@ -25,7 +25,7 @@ import {
   getDestChannelFromSrc,
 } from '../../contexts/connections'
 import {
-  queryICSBridgeProxy,
+  queryICSOutgoingBridgeProxy,
   queryICSBridgeIncomingChannels,
   queryICSBridgeOutgoingChannels,
   queryNftClassIdMsg,
@@ -105,8 +105,6 @@ export default function TransferForm({
       const srcChain = getChainForAddress(`${nftContractAddr}`)
       if (srcChain?.chain_id && isAvailableNetwork(srcChain.chain_id)) {
         setSrcNetwork(srcChain)
-        console.log('destNetwork', destNetwork);
-        
         if (!destNetwork) setDestNetwork(srcChain)
       }
     }
@@ -162,10 +160,8 @@ export default function TransferForm({
     })
 
     console.log('foundChannels', foundChannels);
-    
     setAvailableChannels(foundChannels)
-    // TODO: FIX!
-    // if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
+    if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
   }, [destNetwork]);
 
   const getSrcSigner = async () => {
@@ -209,10 +205,9 @@ export default function TransferForm({
     } catch (e) {
       //
     }
+    
     if (!classId) return;
     let parsedId = parseClassId(classId)
-    console.log('parsedId', parsedId);
-    
 
     // Detect if we're going forward or backward, so we can watch the destination chain for the correct classId & owner
     if (parsedId.length <= 1) {
@@ -221,11 +216,9 @@ export default function TransferForm({
     }
     const destBech = fromBech32(getAddrFromPort(dest.port))
     const srcBech = fromBech32(getAddrFromPort(parsedId[1][0]))
-    console.log('`${destBech.prefix}` === `${srcBech.prefix}`', `${destBech.prefix}`, `${srcBech.prefix}`);
 
     if (`${destBech.prefix}` === `${srcBech.prefix}`) parsedId.shift()
     else parsedId.unshift([dest.port, dest.channel])
-    console.log('parsedId', parsedId);
     
     return joinClassId(parsedId)
   }
@@ -245,7 +238,6 @@ export default function TransferForm({
     const loopInterval = 500
     const loopMaxCalls = 60 // (~30 seconds)
     let loopIndex = 0
-    console.log('destBridgeContractAddr, classId', destBridgeContractAddr, classId);
     if (!classId) {
       return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network. It's still possible the transfer was successful. Please refresh your collection page in a few minutes before trying another transfer."] })
     }
@@ -406,7 +398,6 @@ export default function TransferForm({
     } catch (e) {
       // no proxy fee
     }
-    console.log('proxy_fee', proxy_fee)
 
     // TODO: Check if approval exists???
 
@@ -468,6 +459,7 @@ export default function TransferForm({
         return loopListener(signer)
       }
     } catch (e) {
+      console.log('getProxySendIcsNft e', e);
       // display error UI
       onError({ view: TransferView.Error, errors: [e] })
     }
@@ -491,10 +483,11 @@ export default function TransferForm({
 
     let proxy_addr
     try {
-      const res = await signer.queryContractSmart(contractPort, queryICSBridgeProxy())
-      if (res) proxy_addr = res
+      const res = await signer.queryContractSmart(contractPort, queryICSOutgoingBridgeProxy())
+      if (res) proxy_addr = resetCaches
     } catch (e) {
       // no proxy, just do basic
+      console.log('proxy_addr err', e);
     }
     
     if (proxy_addr) return transferApproved(signer, senderAddr, proxy_addr)

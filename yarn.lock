@@ -95,11 +95,11 @@
     regenerator-runtime "^0.13.11"
 
 "@babel/runtime@^7.21.0":
-  version "7.22.3"
-  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.22.3.tgz#0a7fce51d43adbf0f7b517a71f4c3aaca92ebcbb"
-  integrity sha512-XsDuspWKLUsxwCp6r7EhsExHtYfbe5oAGQ19kqngTdCPUoPQzOPdUbD/pB9PJiwb2ptYKQDjSJT3R6dC+EPqfQ==
+  version "7.24.0"
+  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.24.0.tgz#584c450063ffda59697021430cb47101b085951e"
+  integrity sha512-Chk32uHMg6TnQdvw2e9IlqPpFX/6NLuK0Ys2PqLb7/gL5uFn9mXvK715FGLlOLQrcO4qIkNHkvPGktzzXexsFw==
   dependencies:
-    regenerator-runtime "^0.13.11"
+    regenerator-runtime "^0.14.0"
 
 "@babel/types@^7.18.6":
   version "7.21.3"
@@ -154,10 +154,10 @@
   dependencies:
     "@babel/runtime" "^7.19.4"
 
-"@chain-registry/types@^0.16.0":
-  version "0.16.0"
-  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.16.0.tgz#f76409186899a976d33693d7f458c33d71a66730"
-  integrity sha512-4j6vq2Vqn/nF+UBjvRPUVs6eM3+5rJ+dPmEWpd/OoNH3wTy1k6aoilcSTZRR//vGcI5EOVGsxhhJxUzo2qqweA==
+"@chain-registry/types@^0.18.1":
+  version "0.18.1"
+  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.18.1.tgz#bd926ddf204f2ae986a79b42f0cfe85764e2977a"
+  integrity sha512-H/UnOyd7WdcWHa2FGKxy4MclDDFrbE2rFwaUh9oubNJOey7UBI4dNF10oZIWM/1by15LUgDz45fVbh6uA6W5Tg==
   dependencies:
     "@babel/runtime" "^7.21.0"
 
@@ -1490,7 +1490,17 @@
     react-icons "^4.4.0"
     react-resize-detector "^8.0.3"
 
-"@cosmos-kit/core@1.3.0", "@cosmos-kit/core@^1.3.0":
+"@cosmos-kit/core@1.8.0", "@cosmos-kit/core@^1.8.0":
+  version "1.8.0"
+  resolved "https://registry.yarnpkg.com/@cosmos-kit/core/-/core-1.8.0.tgz#4ab5e96c983cda55de3475cb75443a8a0fd7f01b"
+  integrity sha512-07+upbiwT1IaIhpxINk1g4+T5z9uaQ0ZJhqVAAMoN32fch8D1FmHHaf3PQa/J3uG+KifbhnANwrdtgvnYB8cLw==
+  dependencies:
+    "@chain-registry/types" "0.13.0"
+    "@walletconnect/types" "2.7.2"
+    bowser "2.11.0"
+    events "3.3.0"
+
+"@cosmos-kit/core@^1.3.0":
   version "1.3.0"
   resolved "https://registry.npmjs.org/@cosmos-kit/core/-/core-1.3.0.tgz#81603697bf89a539b609ffe94a5157cb50cfa2d9"
   integrity sha512-5MqzJ+Zd3Avy81sUe8ZXnry7rA1TAn2YC0yqE2aX4SlH+EMwh47ah2QxSt32Dc9qAva1b9ZoYjtgi+lTzzTwJQ==
@@ -1564,27 +1574,27 @@
   dependencies:
     "@cosmos-kit/leap-extension" "^0.14.12"
 
-"@cosmos-kit/react-lite@^1.3.11":
-  version "1.3.11"
-  resolved "https://registry.npmjs.org/@cosmos-kit/react-lite/-/react-lite-1.3.11.tgz#1be2a1011ee07d9a4c946a1eeaf35ad1afbc3958"
-  integrity sha512-Sp1AH8iqfEOhavDXThXIfsxJzLH7lk3IHaQC+GPV8A9jQhL/r+iGa1Wt8XafQ89Lza+KhQQmPtpc2DbFmcb8Ng==
+"@cosmos-kit/react-lite@^1.5.3":
+  version "1.5.3"
+  resolved "https://registry.yarnpkg.com/@cosmos-kit/react-lite/-/react-lite-1.5.3.tgz#c682a9ebf3bc113beefa6a861236a24fd8ec8b09"
+  integrity sha512-6/6sK0Te6Jec5kPgz/mUPnhI47rLxxij8+5em5zsiut2nUVZ7ovN5NghTEWzY8eQgo+9anMsdLrvmOHE522Kkw==
   dependencies:
     "@babel/runtime" "7.11.2"
     "@chain-registry/types" "0.13.1"
-    "@cosmos-kit/core" "^1.3.0"
+    "@cosmos-kit/core" "^1.8.0"
     react "18.2.0"
 
-"@cosmos-kit/react@1.3.11":
-  version "1.3.11"
-  resolved "https://registry.npmjs.org/@cosmos-kit/react/-/react-1.3.11.tgz#7aa15018bef90786bede913ec78731ab2ec544c0"
-  integrity sha512-pe9Nn/6N4ZoELZUBiDjcMOQXSzQBLDjmC9C1RBw5B6niJawDkkYxYYC88IKRijRbAFl0TNAOK1smrzk4cPlesA==
+"@cosmos-kit/react@1.4.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@cosmos-kit/react/-/react-1.4.0.tgz#cd95dd0b3a180bbd03c7078f58f57bea8f87d16b"
+  integrity sha512-NebQuKmGujjSwAu7DSigiYAcoMZlR2cUySyV0dEE+iTjN+IIT9OtAmpkyLonkoneFiMzuFHcWR/LMjaDT9zU2g==
   dependencies:
     "@babel/runtime" "7.11.2"
     "@chain-registry/types" "0.13.1"
     "@chakra-ui/react" "^2.5.1"
     "@cosmology-ui/react" "^0.1.21"
-    "@cosmos-kit/core" "^1.3.0"
-    "@cosmos-kit/react-lite" "^1.3.11"
+    "@cosmos-kit/core" "^1.8.0"
+    "@cosmos-kit/react-lite" "^1.5.3"
     "@emotion/react" "^11.10.6"
     "@emotion/styled" "^11.10.6"
     framer-motion "^9.0.7"
@@ -3377,6 +3387,18 @@
     "@walletconnect/logger" "^2.0.1"
     events "^3.3.0"
 
+"@walletconnect/types@2.7.2":
+  version "2.7.2"
+  resolved "https://registry.yarnpkg.com/@walletconnect/types/-/types-2.7.2.tgz#508d1755110864dee294f955e09b7da3f8ee0064"
+  integrity sha512-1O2UefakZpT0ErRfEAXY7Ls3qdUrKDky/DsK088xR6klyfkQOx+aSVH0fJYLhmnqPTuvp3lrqNbsDc0s6/6nvg==
+  dependencies:
+    "@walletconnect/events" "^1.0.1"
+    "@walletconnect/heartbeat" "1.2.1"
+    "@walletconnect/jsonrpc-types" "^1.0.2"
+    "@walletconnect/keyvaluestorage" "^1.0.2"
+    "@walletconnect/logger" "^2.0.1"
+    events "^3.3.0"
+
 "@walletconnect/types@2.9.0":
   version "2.9.0"
   resolved "https://registry.yarnpkg.com/@walletconnect/types/-/types-2.9.0.tgz#6e5dfdc7212c1ec4ab49a1ec409c743e16093f72"
@@ -4082,13 +4104,13 @@ chai@^4.3.7:
     pathval "^1.1.1"
     type-detect "^4.0.5"
 
-chain-registry@1.14.0:
-  version "1.14.0"
-  resolved "https://registry.yarnpkg.com/chain-registry/-/chain-registry-1.14.0.tgz#874f7c4d416b5122f25d7d8e89e22368074bef1b"
-  integrity sha512-j5PgLP8coJ4uIUtpd2fXTLa3ass2ahbx35+g6eLquDZpIg/0Sr7SKX7M2/0jnaT7ohHKnRLMJxOnBHaDpuotoQ==
+chain-registry@1.29.1:
+  version "1.29.1"
+  resolved "https://registry.yarnpkg.com/chain-registry/-/chain-registry-1.29.1.tgz#15b0392af72a95ec6eab5f4c74cb8f28eec1b80f"
+  integrity sha512-1VdBKme094W3NzsQO7rZkCtGVYnxFGtouv6o+qBdwcRsBUqrhD+QCfNhvuQXa10vKnnpByIDlO9Xg10mx/3KWw==
   dependencies:
     "@babel/runtime" "^7.21.0"
-    "@chain-registry/types" "^0.16.0"
+    "@chain-registry/types" "^0.18.1"
 
 chain-registry@^1.5.0:
   version "1.9.0"
@@ -7287,8 +7309,13 @@ real-require@^0.1.0:
 
 regenerator-runtime@^0.13.11, regenerator-runtime@^0.13.4:
   version "0.13.11"
-  resolved "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.13.11.tgz"
+  resolved "https://registry.yarnpkg.com/regenerator-runtime/-/regenerator-runtime-0.13.11.tgz#f6dca3e7ceec20590d07ada785636a90cdca17f9"
   integrity sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==
+
+regenerator-runtime@^0.14.0:
+  version "0.14.1"
+  resolved "https://registry.yarnpkg.com/regenerator-runtime/-/regenerator-runtime-0.14.1.tgz#356ade10263f685dda125100cd862c1db895327f"
+  integrity sha512-dYnhHh0nJoMfnkZs6GmmhFknAGRrLznOu5nc9ML+EJxGvrx6H7teuevqVqCuPcPK//3eDrrjQhehXVx9cnkGdw==
 
 regexp.prototype.flags@^1.4.3, regexp.prototype.flags@^1.5.0:
   version "1.5.0"
