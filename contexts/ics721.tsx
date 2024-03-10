@@ -168,7 +168,7 @@ export const queryICSProxyChannelWhitelist = () => {
 }
 
 export const queryICSProxyCollectionWhitelist = () => {
-  return 'get_collections_whitelist'
+  return { get_collections_whitelist: {} }
 }
 
 // 30mins from now, in nanos

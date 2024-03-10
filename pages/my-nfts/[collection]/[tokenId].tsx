@@ -140,12 +140,12 @@ export default function NftDetail() {
       let ics721 = { ...contractInfo, ...minter }
       if (collectionInfo) ics721 = { ...ics721, ...collectionInfo }
       if (!ics721.creator) ics721.creator = ics721.minter
-      let class_id = await cosmWasmClient.queryContractSmart(ics721.minter, queryNftClassIdMsg(contractsAddress)) 
-      if (!class_id) class_id = ics721.name
 
       setData((prev) => ({ ...prev, ...ics721, }))
 
       if (isBridgeAddress(ics721.minter)) {
+        let class_id = await cosmWasmClient.queryContractSmart(ics721.minter, queryNftClassIdMsg(contractsAddress))
+        if (!class_id) class_id = ics721.name
         // contractInfo.name gives class_id if minter is known bridge
         const classId = class_id
         const icsList = parseClassId(classId)

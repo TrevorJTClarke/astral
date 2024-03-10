@@ -363,8 +363,8 @@ export const getDestChannelFromSrc = (src: NFTChannel | undefined): NFTChannel |
 
 	connectionChannels.forEach(c => {
 		if (dest) return;
-		if (c.channel_a.chain_id === src.chain_id && c.channel_a.port === src.port) dest = c.channel_b
-		if (c.channel_b.chain_id === src.chain_id && c.channel_b.port === src.port) dest = c.channel_a
+		if (c.channel_a.chain_id === src.chain_id && c.channel_a.port === src.port && c.channel_a.channel === src.channel) dest = c.channel_b
+		if (c.channel_b.chain_id === src.chain_id && c.channel_b.port === src.port && c.channel_b.channel === src.channel) dest = c.channel_a
 	})
 
 	return dest

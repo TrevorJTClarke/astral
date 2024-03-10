@@ -105,8 +105,6 @@ export default function TransferForm({
       const srcChain = getChainForAddress(`${nftContractAddr}`)
       if (srcChain?.chain_id && isAvailableNetwork(srcChain.chain_id)) {
         setSrcNetwork(srcChain)
-        console.log('destNetwork', destNetwork);
-        
         if (!destNetwork) setDestNetwork(srcChain)
       }
     }
@@ -207,10 +205,9 @@ export default function TransferForm({
     } catch (e) {
       //
     }
+    
     if (!classId) return;
     let parsedId = parseClassId(classId)
-    console.log('parsedId', parsedId);
-    
 
     // Detect if we're going forward or backward, so we can watch the destination chain for the correct classId & owner
     if (parsedId.length <= 1) {
@@ -219,11 +216,9 @@ export default function TransferForm({
     }
     const destBech = fromBech32(getAddrFromPort(dest.port))
     const srcBech = fromBech32(getAddrFromPort(parsedId[1][0]))
-    console.log('`${destBech.prefix}` === `${srcBech.prefix}`', `${destBech.prefix}`, `${srcBech.prefix}`);
 
     if (`${destBech.prefix}` === `${srcBech.prefix}`) parsedId.shift()
     else parsedId.unshift([dest.port, dest.channel])
-    console.log('parsedId', parsedId);
     
     return joinClassId(parsedId)
   }
@@ -243,7 +238,6 @@ export default function TransferForm({
     const loopInterval = 500
     const loopMaxCalls = 60 // (~30 seconds)
     let loopIndex = 0
-    console.log('destBridgeContractAddr, classId', destBridgeContractAddr, classId);
     if (!classId) {
       return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network. It's still possible the transfer was successful. Please refresh your collection page in a few minutes before trying another transfer."] })
     }
@@ -404,7 +398,6 @@ export default function TransferForm({
     } catch (e) {
       // no proxy fee
     }
-    console.log('proxy_fee', proxy_fee)
 
     // TODO: Check if approval exists???
 
@@ -418,12 +411,8 @@ export default function TransferForm({
       token_id: `${query.tokenId}`,
       receiver,
     })
-    console.log('msgApproveProxy', msgApproveProxy);
-    console.log('getProxySendIcsNft', getProxySendIcsNft);
 
     try {
-      console.log('APPROVE:', senderAddr, nftContractAddr);
-      
       const res = await signer.execute(
         senderAddr,
         `${nftContractAddr}`,
@@ -447,7 +436,6 @@ export default function TransferForm({
     setCurrentIbcStep(1)
 
     try {
-      console.log('APPROVE:', senderAddr, proxy_addr);
       const res = await signer.execute(
         senderAddr,
         `${proxy_addr}`,
@@ -480,28 +468,23 @@ export default function TransferForm({
   const submitTransfer = async () => {
     if (!nftContractAddr) return onError({ view: TransferView.Error, errors: ['Collection contract not found'] })
     const { signer, senderAddr } = await getSrcSigner()
-    console.log('signer, senderAddr', signer, senderAddr);
-    
 
     // If its same-chain - simply send without IBC
     const recipientChain = getChainForAddress(receiver)
     if (selectedChannel?.chain_id === recipientChain?.chain_id) return sendDirect(signer, senderAddr)
     
     const isWasmPort = `${selectedChannel.port}`.search('wasm') > -1
-    console.log('isWasmPort', isWasmPort);
 
     // non-cosmwasm
     if (!isWasmPort) return onError({ view: TransferView.Error, errors: ['Non-wasm collection not supported yet!'] })
 
     const contractPort = `${selectedChannel.port}`.split('.')[1]
-    console.log('contractPort', contractPort);
     if (!contractPort || !receiver || !selectedChannel?.channel) return onError({ view: TransferView.Error, errors: ['IBC Channel information not found'] })
 
     let proxy_addr
     try {
       const res = await signer.queryContractSmart(contractPort, queryICSOutgoingBridgeProxy())
-      if (res) proxy_addr = res
-      console.log('proxy_addr', res);
+      if (res) proxy_addr = resetCaches
     } catch (e) {
       // no proxy, just do basic
       console.log('proxy_addr err', e);
