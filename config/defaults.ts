@@ -194,8 +194,8 @@ if (networkType === 'testnet') {
     chain_name: 'terra2',
     name: 'Talis Marketplace',
     logoPath: '/logos/talis.svg',
-    marketLink: 'https://talis.art/marketplace',
-    marketDetailLink: (address, tokenId) => `https://talis.art/nft/${tokenId}`,
+    marketLink: 'https://cosmos.talis.art/marketplace',
+    marketDetailLink: (address, tokenId) => `https://cosmos.talis.art/nft/${tokenId}`,
   })
 }
 

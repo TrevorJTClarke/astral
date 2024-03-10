@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { assets, chains } from 'chain-registry';
 import { useRouter } from 'next/router';
 import { useChain, useManager } from '@cosmos-kit/react';
 import { useAccount } from 'wagmi'
@@ -45,6 +46,7 @@ import {
 } from '../../../contexts/connections'
 import {
   parseClassId,
+  queryNftClassIdMsg,
   queryNftContractMsg,
   queryICSOutgoingBridgeProxy,
   queryICSProxyConfig,
@@ -83,6 +85,7 @@ export default function NftDetail() {
   // dynamic wallet/client connections
   const manager = useManager()
   const ethAccount = useAccount()
+  manager.addChains(chains, assets)
 
   // get contract address from url
   if (query.collection && !contractsAddress) setContractsAddress(`${query.collection}`);
@@ -92,7 +95,6 @@ export default function NftDetail() {
 
     try {
       const p: Promise<any>[] = []
-      console.log('currentChainName', currentChainName);
       const repo = manager.getWalletRepo(currentChainName)
       const cosmWasmClient = await repo.getCosmWasmClient()
       let nftInfo
@@ -138,13 +140,16 @@ export default function NftDetail() {
       let ics721 = { ...contractInfo, ...minter }
       if (collectionInfo) ics721 = { ...ics721, ...collectionInfo }
       if (!ics721.creator) ics721.creator = ics721.minter
+      let class_id = await cosmWasmClient.queryContractSmart(ics721.minter, queryNftClassIdMsg(contractsAddress)) 
+      if (!class_id) class_id = ics721.name
 
       setData((prev) => ({ ...prev, ...ics721, }))
 
       if (isBridgeAddress(ics721.minter)) {
         // contractInfo.name gives class_id if minter is known bridge
-        const classId = ics721.name
-        const icsList = parseClassId(ics721.name)
+        const classId = class_id
+        const icsList = parseClassId(classId)
+        
         const provenance = await Promise.all(icsList.map(async (item, idx): Promise<Provenance> => {
           // if only len 1, then its just a contract not bridged
           if (item.length <= 1) {
@@ -307,7 +312,6 @@ export default function NftDetail() {
       // adjust the image from metadata
       if (token?.image?.url) t.image = token.image.url
       if (token?.content?.url) t.image = token.content.url
-      console.log('token t', t);
 
       setToken(t)
       setTokenUri({ access: { owner: token.owner, approvals: [] }})
@@ -361,10 +365,9 @@ export default function NftDetail() {
       return;
     }
     const currentChain = getChainForAddress(contractsAddress)
-    console.log('currentChain', currentChain);
-    let cn = currentChain.chain_name
-    if (cn === 'terra2') cn = 'terra'
-    if (currentChain?.chain_name) setCurrentChainName(cn)
+    // let cn = currentChain.chain_name
+    // if (cn === 'terra2') cn = 'terra'
+    if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
     if (isEthereumAddress) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress, query.collection]);
@@ -527,10 +530,10 @@ export default function NftDetail() {
                                 <td className="border-t border-zinc-800 whitespace-nowrap py-4 pl-4 pr-3 text-left text-sm font-medium text-zinc-300 hover:text-white">
                                   <div className="flex">
                                     {item.asset?.logo_URIs?.png && (
-                                      <img src={item.asset.logo_URIs.png} alt={item.chain.pretty_name} className="h-5 w-5 mr-2 flex-shrink-0 rounded-full" />
+                                      <img src={item.asset.logo_URIs.png} alt={item?.chain?.pretty_name || item?.chain?.chain_name} className="h-5 w-5 mr-2 flex-shrink-0 rounded-full" />
                                     )}
                                     <div className="grid place-items-center">
-                                      {item.chain.pretty_name}
+                                      {item?.chain?.pretty_name || item?.chain?.chain_name}
                                     </div>
                                   </div>
                                 </td>
