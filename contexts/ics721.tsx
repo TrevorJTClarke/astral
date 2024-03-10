@@ -139,8 +139,12 @@ export const queryNftTokenInfoMsg = (token_id: string) => {
   return { all_nft_info: { token_id } }
 }
 
-export const queryICSBridgeProxy = () => {
-  return { proxy: {} }
+export const queryICSIncomingBridgeProxy = () => {
+  return { incoming_proxy: {} }
+}
+
+export const queryICSOutgoingBridgeProxy = () => {
+  return { outgoing_proxy: {} }
 }
 
 export const queryICSBridgeIncomingChannels = (start_after?: string, limit?: number) => {

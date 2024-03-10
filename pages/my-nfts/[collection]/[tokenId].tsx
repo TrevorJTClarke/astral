@@ -46,7 +46,7 @@ import {
 import {
   parseClassId,
   queryNftContractMsg,
-  queryICSBridgeProxy,
+  queryICSOutgoingBridgeProxy,
   queryICSProxyConfig,
   queryICSProxyCollectionWhitelist,
 } from '../../../contexts/ics721'
@@ -92,6 +92,7 @@ export default function NftDetail() {
 
     try {
       const p: Promise<any>[] = []
+      console.log('currentChainName', currentChainName);
       const repo = manager.getWalletRepo(currentChainName)
       const cosmWasmClient = await repo.getCosmWasmClient()
       let nftInfo
@@ -236,7 +237,7 @@ export default function NftDetail() {
     let config: any = {}
     // check if bridge has proxy
     try {
-      const res = await client.queryContractSmart(bridge, queryICSBridgeProxy())
+      const res = await client.queryContractSmart(bridge, queryICSOutgoingBridgeProxy())
       if (res) proxy = res
     } catch (e) {
       //
@@ -360,7 +361,10 @@ export default function NftDetail() {
       return;
     }
     const currentChain = getChainForAddress(contractsAddress)
-    if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
+    console.log('currentChain', currentChain);
+    let cn = currentChain.chain_name
+    if (cn === 'terra2') cn = 'terra'
+    if (currentChain?.chain_name) setCurrentChainName(cn)
     if (isEthereumAddress) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress, query.collection]);

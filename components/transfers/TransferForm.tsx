@@ -25,7 +25,7 @@ import {
   getDestChannelFromSrc,
 } from '../../contexts/connections'
 import {
-  queryICSBridgeProxy,
+  queryICSOutgoingBridgeProxy,
   queryICSBridgeIncomingChannels,
   queryICSBridgeOutgoingChannels,
   queryNftClassIdMsg,
@@ -162,10 +162,8 @@ export default function TransferForm({
     })
 
     console.log('foundChannels', foundChannels);
-    
     setAvailableChannels(foundChannels)
-    // TODO: FIX!
-    // if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
+    if (foundChannels.length > 0) setSelectedChannel(foundChannels[0])
   }, [destNetwork]);
 
   const getSrcSigner = async () => {
@@ -420,8 +418,12 @@ export default function TransferForm({
       token_id: `${query.tokenId}`,
       receiver,
     })
+    console.log('msgApproveProxy', msgApproveProxy);
+    console.log('getProxySendIcsNft', getProxySendIcsNft);
 
     try {
+      console.log('APPROVE:', senderAddr, nftContractAddr);
+      
       const res = await signer.execute(
         senderAddr,
         `${nftContractAddr}`,
@@ -445,6 +447,7 @@ export default function TransferForm({
     setCurrentIbcStep(1)
 
     try {
+      console.log('APPROVE:', senderAddr, proxy_addr);
       const res = await signer.execute(
         senderAddr,
         `${proxy_addr}`,
@@ -468,6 +471,7 @@ export default function TransferForm({
         return loopListener(signer)
       }
     } catch (e) {
+      console.log('getProxySendIcsNft e', e);
       // display error UI
       onError({ view: TransferView.Error, errors: [e] })
     }
@@ -476,25 +480,31 @@ export default function TransferForm({
   const submitTransfer = async () => {
     if (!nftContractAddr) return onError({ view: TransferView.Error, errors: ['Collection contract not found'] })
     const { signer, senderAddr } = await getSrcSigner()
+    console.log('signer, senderAddr', signer, senderAddr);
+    
 
     // If its same-chain - simply send without IBC
     const recipientChain = getChainForAddress(receiver)
     if (selectedChannel?.chain_id === recipientChain?.chain_id) return sendDirect(signer, senderAddr)
     
     const isWasmPort = `${selectedChannel.port}`.search('wasm') > -1
+    console.log('isWasmPort', isWasmPort);
 
     // non-cosmwasm
     if (!isWasmPort) return onError({ view: TransferView.Error, errors: ['Non-wasm collection not supported yet!'] })
 
     const contractPort = `${selectedChannel.port}`.split('.')[1]
+    console.log('contractPort', contractPort);
     if (!contractPort || !receiver || !selectedChannel?.channel) return onError({ view: TransferView.Error, errors: ['IBC Channel information not found'] })
 
     let proxy_addr
     try {
-      const res = await signer.queryContractSmart(contractPort, queryICSBridgeProxy())
+      const res = await signer.queryContractSmart(contractPort, queryICSOutgoingBridgeProxy())
       if (res) proxy_addr = res
+      console.log('proxy_addr', res);
     } catch (e) {
       // no proxy, just do basic
+      console.log('proxy_addr err', e);
     }
     
     if (proxy_addr) return transferApproved(signer, senderAddr, proxy_addr)
