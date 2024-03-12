@@ -484,7 +484,7 @@ export default function TransferForm({
     let proxy_addr
     try {
       const res = await signer.queryContractSmart(contractPort, queryICSOutgoingBridgeProxy())
-      if (res) proxy_addr = resetCaches
+      if (res) proxy_addr = res
     } catch (e) {
       // no proxy, just do basic
       console.log('proxy_addr err', e);
