@@ -164,11 +164,11 @@ export const queryICSProxyRateLimit = () => {
 }
 
 export const queryICSProxyChannelWhitelist = () => {
-  return { get_channels_whitelist: {} }
+  return { get_channels_whitelist: { limit: 100 } }
 }
 
 export const queryICSProxyCollectionWhitelist = () => {
-  return { get_collections_whitelist: {} }
+  return { get_collections_whitelist: { limit: 100 } }
 }
 
 // 30mins from now, in nanos

@@ -405,12 +405,6 @@ export default function TransferForm({
     // 1. approve proxy (if available)
     // 2. submit transfer (directly or via proxy)
     const msgApproveProxy = getMsgApproveIcsProxy({ proxy_addr, token_id: `${query.tokenId}` })
-    const getProxySendIcsNft = getMsgProxySendIcsNft({
-      channel_id: selectedChannel?.channel || '',
-      contract: `${nftContractAddr}`,
-      token_id: `${query.tokenId}`,
-      receiver,
-    })
 
     try {
       const res = await signer.execute(
@@ -434,6 +428,13 @@ export default function TransferForm({
       return onError({ view: TransferView.Error, errors: [e] })
     }
     setCurrentIbcStep(1)
+
+    const getProxySendIcsNft = getMsgProxySendIcsNft({
+      channel_id: selectedChannel?.channel || '',
+      contract: `${nftContractAddr}`,
+      token_id: `${query.tokenId}`,
+      receiver,
+    })
 
     try {
       const res = await signer.execute(
