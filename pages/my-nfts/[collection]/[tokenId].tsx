@@ -90,6 +90,18 @@ export default function NftDetail() {
   // get contract address from url
   if (query.collection && !contractsAddress) setContractsAddress(`${query.collection}`);
 
+  const evalOwner = async (repo, owner) => {
+    // If owner matches any logged in wallet, im the owner
+    if (repo.current?.address && repo.current?.address === owner) setIsOwner(true)
+    if (!repo.current) {
+      const cache = localStorage.getItem('cosmos-kit@1:core//accounts')
+      const accounts = cache ? JSON.parse(cache) : null
+      const chainId = repo?.chainRecord?.chain?.chain_id
+      const currentAccount = accounts.find(acc => acc.chainId === chainId)
+      if (currentAccount && currentAccount.address === owner) setIsOwner(true)
+    }
+  }
+
   const getAllInfoCosmos = async () => {
     if (!contractsAddress || !currentChainName) return;
 
@@ -110,9 +122,7 @@ export default function NftDetail() {
 
       if (nftInfo?.access?.owner) {
         const owner = nftInfo.access.owner
-
-        // If owner matches any logged in wallet, im the owner
-        if (repo.current?.address && repo.current?.address === owner) setIsOwner(true)
+        evalOwner(repo, owner)
 
         if (owner.length > 44) {
           // pre-known list check
@@ -140,7 +150,6 @@ export default function NftDetail() {
       let ics721 = { ...contractInfo, ...minter }
       if (collectionInfo) ics721 = { ...ics721, ...collectionInfo }
       if (!ics721.creator) ics721.creator = ics721.minter
-
       setData((prev) => ({ ...prev, ...ics721, }))
 
       if (isBridgeAddress(ics721.minter)) {
@@ -365,8 +374,6 @@ export default function NftDetail() {
       return;
     }
     const currentChain = getChainForAddress(contractsAddress)
-    // let cn = currentChain.chain_name
-    // if (cn === 'terra2') cn = 'terra'
     if (currentChain?.chain_name) setCurrentChainName(currentChain.chain_name)
     if (isEthereumAddress) setCurrentChainName(ethereummainnet.chain_name)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -400,7 +407,7 @@ export default function NftDetail() {
   }, [contractsAddress, tokenUri]);
 
   const imageUrl = token.imageUrl && !token.backgroundUrl ? getHttpUrl(token?.imageUrl) : null
-  const tokenDescription = `${token.description}`
+  const tokenDescription = token?.description ? `${token.description}` : null
   const tokenChain = contractsAddress ? getChainForAddress(contractsAddress) : null
   const market = contractsAddress ? getMarketForAddress(`${contractsAddress}`) : null
   const marketLink = market ? market.marketDetailLink(contractsAddress, query.tokenId) : null
@@ -450,9 +457,9 @@ export default function NftDetail() {
                     <div className="mb-2 text-2xl font-semibold">{token.name}</div>
                   </div>
                 </div>
-                <div className="text-sm text-zinc-300">
+                {tokenDescription && (<div className="text-sm text-zinc-300">
                   {tokenDescription}
-                </div>
+                </div>)}
                 <p className="flex mt-2 text-sm text-zinc-300">
                   <span className="mr-2">Created by</span>
                   <AliasAddress>{data.creator || ''}</AliasAddress>
