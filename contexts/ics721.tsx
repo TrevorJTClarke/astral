@@ -171,6 +171,10 @@ export const queryICSProxyCollectionWhitelist = () => {
   return { get_collections_whitelist: { limit: 100 } }
 }
 
+export const queryICSProxyCollectionIsWhitelisted = (collection: string) => {
+  return { is_collection_whitelisted: { collection } }
+}
+
 // 30mins from now, in nanos
 export const getNowPlus30Mins = () => `${(+new Date() + (30 * 60 * 1000)) * 1000000}`
 

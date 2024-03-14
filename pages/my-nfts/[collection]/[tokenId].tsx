@@ -44,12 +44,14 @@ import {
   NFTChannel,
   isBridgeAddress,
   getContractFromPort,
+  getBridgeContractsForChainId,
 } from '../../../contexts/connections'
 import {
   parseClassId,
   queryNftClassIdMsg,
   queryNftContractMsg,
   queryICSOutgoingBridgeProxy,
+  queryICSProxyCollectionIsWhitelisted,
   queryICSProxyConfig,
   queryICSProxyCollectionWhitelist,
 } from '../../../contexts/ics721'
@@ -239,6 +241,8 @@ export default function NftDetail() {
             is_origin: true,
           },
         ])
+        const ports = getBridgeContractsForChainId(chain?.chain_id)
+        if (ports.length > 0) checkIfCosmosNftLocked(cosmWasmClient, ports[0])
       }
 
       setHasData(true)
@@ -269,10 +273,10 @@ export default function NftDetail() {
 
     if (!config.collections_whitelist_enabled) return;
 
-    // check if collection is WL in proxy
+    // check if collection is WL'd'
     try {
-      const res = await client.queryContractSmart(proxy, queryICSProxyCollectionWhitelist())
-      if (res) setIsLocked(!res.includes(contractsAddress))
+      const res = await client.queryContractSmart(proxy, queryICSProxyCollectionIsWhitelisted(`${contractsAddress}`))
+      if (typeof res === 'boolean') setIsLocked(!res)
     } catch (e) {
       //
     }
@@ -417,7 +421,6 @@ export default function NftDetail() {
   }, [contractsAddress, tokenUri]);
 
   const annotateTokenCosmos = async () => {
-    console.log('getTokenStargazeQuery?.data', getTokenStargazeQuery.data);
     if (getTokenStargazeQuery?.data?.token) {
       const tkn = getTokenStargazeQuery.data.token
       const imageUrl = tkn?.image?.url || tkn?.image
@@ -505,7 +508,7 @@ export default function NftDetail() {
                     )}
                     {isOwner && isLocked && (
                       <div className="relative cursor-help" title="This NFT is locked. Requires the bridge to whitelist the collection to enable interchain transfer.">
-                        <button disabled={isEthereumAddress} onClick={() => setTransferModalOpen(true)} className="flex-none cursor-help rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 bg-gray-600 text-white shadow-sm inline-flex items-center justify-center h-10 px-4 py-2 text-sm" type="submit">
+                        <button disabled className="flex-none rounded-lg border border-transparent font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500 bg-gray-600 text-white shadow-sm inline-flex items-center justify-center h-10 px-4 py-2 text-sm cursor-not-allowed" type="submit">
                           <span>Transfer</span>
                           {/* <PaperAirplaneIcon className="flex-shrink-0 w-5 h-5 ml-2 text-white" /> */}
                           <div className="inline-flex my-auto ml-4 px-1 py-1 rounded-full text-white/75 hover:text-white bg-gray-700">

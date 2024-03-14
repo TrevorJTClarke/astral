@@ -113,6 +113,18 @@ export const mainnetConnections: NFTConnection[] = [
 			channel: "channel-463",
 		},
 	},
+	// {
+	// 	channel_a: {
+	// 		chain_id: "stargaze-1",
+	// 		port: "wasm.stars1r0a8ygvnjfaegy4n5z9325e0ew9uy2s7rn4vt7qf4ltv49fj4tnsk6pvtv",
+	// 		channel: "channel-271",
+	// 	},
+	// 	channel_b: {
+	// 		chain_id: "xstaxy-1",
+	// 		port: "wasm.aura1ezngmms9pzsuep7w4llvnq4wgr7cy8dk066yj6w30lej5gfxm36snnnr2a",
+	// 		channel: "channel-24",
+	// 	},
+	// },
 ]
 
 // Examples:
