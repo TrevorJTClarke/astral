@@ -64,6 +64,51 @@ query OwnedTokens($owner: String!, $limit: Int, $offset: Int) {
 }
 `;
 
+// query OwnedTokens($owner: String!, $limit: Int, $offset: Int, $filterByCollectionAddrs: [String!], $filterForSale: SaleType, $sortBy: TokenSort, $size: ImageSize) {
+// filterForSale: $filterForSale
+// filterByCollectionAddrs: $filterByCollectionAddrs
+// sortBy: $sortBy
+export const TOKEN_STARGAZE = gql`
+query Token($collectionAddr: String!, $tokenId: String!) {
+  token(collectionAddr: $collectionAddr, tokenId: $tokenId) {
+    id
+    name
+    description
+    tokenId
+    rarityScore
+    collectionAddr
+    ownerAddr
+    animation {
+      contentLength
+      contentType
+      height
+      url
+      width
+    }
+    animationUrl
+    imageUrl
+    image {
+      contentLength
+      contentType
+      height
+      url
+      width
+    }
+    traits { 
+      name
+      value
+      rarityPercent
+      rarity
+    }
+    owner {
+      name {
+        name
+      }
+    }
+  }
+}
+`;
+
 export const defaultEthNetwork = 'ETHEREUM'
 export const defaultEthChainId = 'MAINNET'
 export const OWNEDTOKENS_ETHEREUM = gql`

@@ -20,6 +20,7 @@ export const ProfileWallet = () => {
       setWallets()
     }
   })
+  const { wallet } = useChain(chainName);
 
   const getMeta = async () => {
     if (!rootAccount || !rootAccount.connector) return;
@@ -47,8 +48,6 @@ export const ProfileWallet = () => {
       return p
     })
   }, [walletId])
-
-  const { wallet } = useChain(chainName);
 
   useEffect(() => {
     if (wallet) setWallets(prev => {

@@ -8,8 +8,11 @@ export interface NftImage {
   backgroundUrl?: string
 }
 
+// TODO:  poster={`https://i.stargaze-apis.com/HSmt85eLaQ1AlJlbkU05tP96Yq7eU4EdygpoGQcBFRM/f:jpg/resize:fit:700:::/dpr:2/plain/${imageSource}`}
 export default function NftImage({ uri, alt, className, backgroundUrl }: NftImage) {
+  if (!uri) return;
   const imageSource = `${uri}`.search('ipfs:') > -1 ? getHttpUrl(uri) : uri
+  const isVideo = `${uri}`.search('mp4') > -1
   const styles = { background: backgroundUrl }
   return (
     <div>
@@ -20,9 +23,18 @@ export default function NftImage({ uri, alt, className, backgroundUrl }: NftImag
               <div style={styles} className="md:aspect-h-1 md:aspect-w-1"></div>
             )}
             {
-              imageSource && (
+              imageSource && !isVideo && (
                 <div className="md:aspect-h-1 md:aspect-w-1">
-                  <img src={imageSource} height="100%" width="100%" alt={alt || ''} className="object-cover transition-all" />
+                  <img src={imageSource} height="100%" width="100%" alt={alt || ''} loading="lazy" className="object-cover transition-all" />
+                </div>
+              )
+            }
+            {
+              imageSource && isVideo && (
+                <div className="md:aspect-h-1 md:aspect-w-1">
+                  <video height="1024" width="1024" autoPlay playsInline loop muted controls preload="metadata" crossOrigin="anonymous">
+                    <source type="video/mp4" src={imageSource} />Your browser does not support this video player.
+                  </video>
                 </div>
               )
             }

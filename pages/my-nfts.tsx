@@ -110,7 +110,7 @@ export default function MyNfts() {
 
   const compareActiveSort = (a, b) => {
     if (activeSort == 'Token Id') return a.token_id - b.token_id
-    if (activeSort == 'Token Name') return a.name.localeCompare(b.name)
+    if (activeSort == 'Token Name' && a.name && b.name) return a.name.localeCompare(b.name)
   }
 
   // dynamic wallet/client connections
@@ -137,8 +137,8 @@ export default function MyNfts() {
           variables: {
             owner,
             // filterForSale: null,
-            // sortBy: "PRICE_ASC",
-            limit: 100
+            sortBy: "PRICE_ASC",
+            limit: 150
           },
         })
       })
@@ -261,6 +261,7 @@ export default function MyNfts() {
         if (!has) dedupedNfts.push(newTkn)
       })
       if (dedupedNfts.length > 0) setHasData(true)
+
       return dedupedNfts
     })
   }

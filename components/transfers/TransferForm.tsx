@@ -236,7 +236,7 @@ export default function TransferForm({
     const destBridgeContractAddr = dest.port.split('.')[1]
     const classId = await getNextClassId(signerClient, dest)
     const loopInterval = 500
-    const loopMaxCalls = 60 // (~30 seconds)
+    const loopMaxCalls = 120 // (~60 seconds)
     let loopIndex = 0
     if (!classId) {
       return onError({ view: TransferView.Error, errors: ["Could not confirm transfer on destination network. It's still possible the transfer was successful. Please refresh your collection page in a few minutes before trying another transfer."] })

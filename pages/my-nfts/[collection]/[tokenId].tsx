@@ -36,6 +36,7 @@ import {
   getChainForAddress,
   ethereummainnet,
   GET_TOKEN_ETHEREUM,
+  TOKEN_STARGAZE,
 } from '../../../config'
 import {
   availableNetworks,
@@ -71,6 +72,7 @@ export default function NftDetail() {
   const [token, setToken] = useState<Partial<Token>>({});
   const [contractsAddress, setContractsAddress] = useState<string | undefined>();
   const [provenance, setProvenance] = useState<Provenance[]>([]);
+  const [getTokenStargaze, getTokenStargazeQuery] = useLazyQuery(TOKEN_STARGAZE);
   const [getTokenEthereum, tokenEthereumQuery] = useLazyQuery(GET_TOKEN_ETHEREUM, { client: clientEthereum })
 
   const [transferModalOpen, setTransferModalOpen] = useState(false)
@@ -391,20 +393,45 @@ export default function NftDetail() {
         if (res.ok) {
           return res.json()
         }
-        // throw res
+        throw res
       })
       .then(data => {
+        const imageUrl = data?.image?.url || data?.image
         setToken((prev) => ({
           ...prev,
           ...data,
-          imageUrl: data.image.url || data.image,
+          imageUrl,
         }));
       })
       .catch(e => {
         // 
+        console.log('FAILED nftInfoUri e', e, nftInfoUri);
+        getTokenStargaze({
+          variables: {
+            collectionAddr: `${query.collection}`,
+            tokenId: `${query.tokenId}`,
+          },
+        })
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsAddress, tokenUri]);
+
+  const annotateTokenCosmos = async () => {
+    console.log('getTokenStargazeQuery?.data', getTokenStargazeQuery.data);
+    if (getTokenStargazeQuery?.data?.token) {
+      const tkn = getTokenStargazeQuery.data.token
+      const imageUrl = tkn?.image?.url || tkn?.image
+      setToken((prev) => ({
+        ...prev,
+        ...tkn,
+        imageUrl,
+      }));
+    }
+  }
+
+  useEffect(() => {
+    annotateTokenCosmos()
+  }, [getTokenStargazeQuery.data]);
 
   const imageUrl = token.imageUrl && !token.backgroundUrl ? getHttpUrl(token?.imageUrl) : null
   const tokenDescription = token?.description ? `${token.description}` : null
